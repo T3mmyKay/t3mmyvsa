@@ -27,8 +27,7 @@
             "**/.vscode/**",
             "logs/**",
             "**/*.user",
-            "RULES.md",
-            "README.md"
+            "RULES.md"
           ]
         }
       ]
