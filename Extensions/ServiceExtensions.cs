@@ -9,12 +9,10 @@ using T3mmyvsa.Configuration;
 using T3mmyvsa.Data;
 using T3mmyvsa.Entities;
 using TickerQ.DependencyInjection;
-using TickerQ.EntityFrameworkCore;
-using TickerQ.Utilities.Entities;
-
 using T3mmyvsa.Interfaces;
 using TickerQ.EntityFrameworkCore.DependencyInjection;
 using TickerQ.EntityFrameworkCore.DbContextFactory;
+using TickerQ.Dashboard.DependencyInjection;
 
 namespace T3mmyvsa.Extensions;
 
@@ -193,6 +191,11 @@ public static class ServiceExtensions
         {
             services.AddTickerQ(options =>
             {
+                options.AddDashboard(dashboardOptions =>
+                {
+                    dashboardOptions.WithBasicAuth("tickeqAdmin", "tickeqAdmin@123");
+                });
+
                 options.ConfigureScheduler(scheduler =>
                 {
                     scheduler.MaxConcurrency = 8;
