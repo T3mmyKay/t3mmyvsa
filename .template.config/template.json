@@ -1,0 +1,37 @@
+{
+  "$schema": "http://json.schemastore.org/template",
+  "author": "T3mmy",
+  "classifications": [
+    "Web",
+    "API"
+  ],
+  "identity": "T3mmy.VSA.Template",
+  "name": "T3mmyVSA",
+  "description": "A robust ASP.NET Core Web API template implementing Vertical Slice Architecture, featuring pre-configured Serilog logging, Scrutor for DI, EF Core 10 with SQL Server, and API Versioning. Ideal for building scalable and maintainable APIs.",
+  "shortName": "t3mmyvsa",
+  "sourceName": "T3mmyvsa",
+  "tags": {
+    "language": "C#",
+    "type": "project"
+  },
+  "sources": [
+    {
+      "modifiers": [
+        {
+          "exclude": [
+            "**/[Bb]in/**",
+            "**/[Oo]bj/**",
+            ".git/**",
+            "**/.git/**",
+            "**/.idea/**",
+            "**/.vscode/**",
+            "logs/**",
+            "**/*.user",
+            "RULES.md",
+            "README.md"
+          ]
+        }
+      ]
+    }
+  ]
+}

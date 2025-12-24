@@ -1,0 +1,49 @@
+<Project>
+  <PropertyGroup>
+    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+    <!-- Reusable version variables for centrally managed packages.
+             Use in PackageVersion as: Version="$(PropertyName)" -->
+    <DotNetVersion>10.0</DotNetVersion>
+    <!-- Microsoft package version families -->
+    <MicrosoftAspNetCoreVersion>10.0.1</MicrosoftAspNetCoreVersion>
+    <MicrosoftEntityFrameworkCoreVersion>10.0.1</MicrosoftEntityFrameworkCoreVersion>
+    <MicrosoftExtensionsVersion>10.0.1</MicrosoftExtensionsVersion>
+    <TickerQVersion>10.0.2</TickerQVersion>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageVersion Include="Asp.Versioning.Http" Version="8.1.0" />
+    <PackageVersion Include="Asp.Versioning.Mvc.ApiExplorer" Version="8.1.0" />
+    <PackageVersion Include="Carter" Version="10.0.0" />
+    <PackageVersion Include="Cortex.Mediator" Version="2.1.0" />
+    <PackageVersion Include="Cortex.States" Version="2.1.0" />
+    <PackageVersion Include="Cortex.Streams" Version="2.1.0" />
+    <PackageVersion Include="FluentValidation" Version="12.1.1" />
+    <PackageVersion Include="FluentValidation.DependencyInjectionExtensions" Version="12.1.1" />
+    <PackageVersion Include="MailKit" Version="4.14.1" />
+    <PackageVersion Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="$(MicrosoftAspNetCoreVersion)" />
+    <PackageVersion Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="$(MicrosoftAspNetCoreVersion)" />
+    <PackageVersion Include="Microsoft.AspNetCore.OpenApi" Version="$(MicrosoftAspNetCoreVersion)" />
+    <PackageVersion Include="Microsoft.EntityFrameworkCore" Version="$(MicrosoftEntityFrameworkCoreVersion)" />
+    <PackageVersion Include="Microsoft.EntityFrameworkCore.Design" Version="$(MicrosoftEntityFrameworkCoreVersion)" />
+    <PackageVersion Include="Microsoft.EntityFrameworkCore.SqlServer" Version="$(MicrosoftEntityFrameworkCoreVersion)" />
+    <PackageVersion Include="Microsoft.Extensions.ApiDescription.Server" Version="$(MicrosoftEntityFrameworkCoreVersion)" />
+    <PackageVersion Include="Microsoft.OpenApi" Version="2.0.0" />
+    <PackageVersion Include="MimeKit" Version="4.14.0" />
+    <PackageVersion Include="QuestPDF" Version="2025.12.0" />
+    <PackageVersion Include="QuestPDF.HTML" Version="1.4.2" />
+    <PackageVersion Include="Riok.Mapperly" Version="4.3.0" />
+    <PackageVersion Include="Scalar.AspNetCore" Version="2.11.9" />
+    <PackageVersion Include="Scrutor" Version="7.0.0" />
+    <PackageVersion Include="Serilog" Version="4.3.0" />
+    <PackageVersion Include="Serilog.AspNetCore" Version="10.0.0" />
+    <PackageVersion Include="Serilog.Extensions.Hosting" Version="10.0.0" />
+    <PackageVersion Include="Serilog.Extensions.Logging" Version="10.0.0" />
+    <PackageVersion Include="Serilog.Settings.Configuration" Version="10.0.0" />
+    <PackageVersion Include="Serilog.Sinks.Console" Version="6.1.1" />
+    <PackageVersion Include="Serilog.Sinks.File" Version="7.0.0" />
+    <PackageVersion Include="TickerQ" Version="10.0.2" />
+    <PackageVersion Include="TickerQ.Dashboard" Version="$(TickerQVersion)" />
+    <PackageVersion Include="TickerQ.EntityFrameworkCore" Version="$(TickerQVersion)" />
+    <PackageVersion Include="TickerQ.Utilities" Version="$(TickerQVersion)" />
+  </ItemGroup>
+</Project>
