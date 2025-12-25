@@ -6,7 +6,7 @@ A reusable .NET project template based on the Vertical Slice Architecture.
 
 - **Framework**: .NET 10 (ASP.NET Core Web API)
 - **Pattern**: Vertical Slice Architecture tailored for feature isolation.
-- **Database**: SQL Server 2025 with EF Core 10.
+- **Database**: SQL Server 2022 with EF Core 10.
 - **Logging**: Serilog Structured Logging.
 - **Dependency Injection**: Scrutor for automatic assembly scanning.
 
@@ -17,7 +17,8 @@ A reusable .NET project template based on the Vertical Slice Architecture.
 - **EF Core 10**: Pre-configured with SQL Server support.
 - **Solid Foundation**: Base entities, repository patterns (if used), and robust configuration.
 - **API Versioning**: Built-in support.
-- **OpenAPI/Swagger**: Verification and testing UI.
+- **OpenAPI/Scalar**: Verification and testing UI (Scalar).
+- **Background Jobs**: TickerQ for high-performance, reflection-free distributed job scheduling.
 
 ## Getting Started
 
@@ -58,16 +59,41 @@ The generated project follows the Vertical Slice Architecture:
 - `Entities/`: Domain entities.
 - `api/`: API endpoints (organized by feature or via generic controllers).
 
+## Background Jobs
+
+This template uses [TickerQ](https://github.com/T3mmyKay/TicketQ) for efficient, reflection-free background job processing.
+
+### Key Features
+
+- **High Performance**: Uses source generators to avoid runtime reflection overhead.
+- **Dashboard**: Built-in real-time dashboard for monitoring jobs.
+- **EF Core Integration**: Seamlessly stores job state in your database.
+
+### Usage
+
+Define a job using the `[TickerFunction]` attribute:
+
+```csharp
+public partial class MyJob
+{
+    [TickerFunction("DailyCleanup", "0 0 * * *")]
+    public async Task CleanupAsync(CancellationToken cancellationToken)
+    {
+        // Job logic here
+    }
+}
+```
+
 ## Update Template
 
 If you have modified the local template source, you can update the installed version by running:
 
 ```bash
-dotnet new install --force /Users/t3mmy/Documents/workspaces/aft-workspace/dotnet/e-Haulage
+dotnet new install --force .
 ```
 
-(Note: Replace the path with the actual path to your template source if it changes).
+(Note: Replace `.` with the actual path to your template source if you are running this from a different location).
 
 ## License
 
-[Add your license here]
+Distributed under the MIT License. See `LICENSE` for more information.

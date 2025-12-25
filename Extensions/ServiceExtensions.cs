@@ -210,6 +210,8 @@ public static class ServiceExtensions
                     {
                         optionsBuilder.UseSqlServer(connectionString, cfg =>
                         {
+                            cfg.MigrationsAssembly(typeof(Program).Assembly.GetName().Name!);
+
                             cfg.EnableRetryOnFailure(3, TimeSpan.FromSeconds(5), null);
                         });
                     }, schema: "ticker");
