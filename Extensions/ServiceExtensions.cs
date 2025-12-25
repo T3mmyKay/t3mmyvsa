@@ -107,6 +107,11 @@ public static class ServiceExtensions
             });
         }
 
+        public void ConfigureAppSettings(IConfiguration configuration)
+        {
+            services.Configure<AppSettings>(configuration.GetSection("AppSettings"));
+        }
+
         public void ConfigureMail(IConfiguration configuration)
         {
             services.Configure<MailSettings>(configuration.GetSection("MailSettings"));

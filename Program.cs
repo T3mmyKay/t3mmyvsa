@@ -34,6 +34,7 @@ try
     builder.Services.ConfigureIdentity();
     builder.Services.ConfigureJwt(builder.Configuration);
     builder.Services.ConfigureMail(builder.Configuration);
+    builder.Services.ConfigureAppSettings(builder.Configuration);
     builder.Services.ConfigureServiceScanning();
     builder.Services.ConfigureApiVersioning();
     builder.Services.ConfigureValidation();

@@ -29,4 +29,20 @@ public class EmailService(IOptions<MailSettings> mailSettings) : IEmailService
         await smtp.SendAsync(email);
         await smtp.DisconnectAsync(true);
     }
+
+    public async Task SendPasswordResetEmailAsync(string to, string resetLink)
+    {
+        string subject = "Reset your password";
+        string htmlMessage = $@"
+            <html>
+                <body>
+                    <h2>Reset Password</h2>
+                    <p>Please click the link below to reset your password:</p>
+                    <a href='{resetLink}'>Reset Password</a>
+                    <p>If you did not request this, please ignore this email.</p>
+                </body>
+            </html>";
+
+        await SendEmailAsync(to, subject, htmlMessage);
+    }
 }
