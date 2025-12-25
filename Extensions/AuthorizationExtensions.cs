@@ -60,7 +60,7 @@ public static class AuthorizationExtensions
         /// </summary>
         public RouteHandlerBuilder HasPermissions(AppPermission permission)
         {
-            return builder.HasPermissions(permission.GetDescription());
+            return builder.HasPermissions(new[] { permission.GetDescription() });
         }
 
         /// <summary>
