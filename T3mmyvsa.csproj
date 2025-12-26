@@ -6,6 +6,8 @@
         <ImplicitUsings>enable</ImplicitUsings>
         <RootNamespace>T3mmyvsa</RootNamespace>
         <AssemblyName>T3mmyvsa</AssemblyName>
+        <InterceptorsNamespaces>$(InterceptorsNamespaces);Microsoft.AspNetCore.Http.Validation.Generated</InterceptorsNamespaces>
+
         <!-- OpenAPI build-time generation settings -->
         <OpenApiGenerateDocuments>true</OpenApiGenerateDocuments>
         <OpenApiDocumentsDirectory>wwwroot/openapi</OpenApiDocumentsDirectory>
@@ -36,6 +38,7 @@
         </PackageReference>
         <PackageReference Include="Microsoft.OpenApi" />
         <PackageReference Include="MimeKit" />
+        <PackageReference Include="MySql.EntityFrameworkCore" />
         <PackageReference Include="QuestPDF" />
         <PackageReference Include="QuestPDF.HTML" />
         <PackageReference Include="Riok.Mapperly" />

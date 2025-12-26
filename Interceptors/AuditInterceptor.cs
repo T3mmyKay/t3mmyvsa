@@ -10,7 +10,7 @@ namespace T3mmyvsa.Interceptors;
 /// EF Core interceptor that automatically populates audit fields and generates audit logs.
 /// Captures device info (IP, UserAgent) and detailed property changes (OldValues/NewValues).
 /// </summary>
-[ScopedService]
+[SingletonService]
 public class AuditInterceptor(IHttpContextAccessor httpContextAccessor) : SaveChangesInterceptor
 {
     public override ValueTask<InterceptionResult<int>> SavingChangesAsync(

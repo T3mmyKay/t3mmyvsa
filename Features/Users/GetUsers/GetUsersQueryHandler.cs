@@ -8,6 +8,7 @@ public class GetUsersQueryHandler(UserManager<User> userManager) : IQueryHandler
     public async Task<PaginatedResponse<UserResponse>> Handle(GetUsersQuery query, CancellationToken cancellationToken)
     {
         var request = query.Request;
+
         var queryable = userManager.Users.AsNoTracking();
 
         // Search
@@ -18,10 +19,10 @@ public class GetUsersQueryHandler(UserManager<User> userManager) : IQueryHandler
                 (u.Email != null && u.Email.Contains(search)) ||
                 (u.UserName != null && u.UserName.Contains(search)) ||
                 (u.FirstName != null && u.FirstName.Contains(search)) ||
-                (u.LastName != null && u.LastName.Contains(search)));
+                (u.LastName != null && u.LastName.Contains(search)) ||
+                ((u.FirstName + " " + u.LastName).Contains(search)));
         }
 
-        // Sorting
         // Sorting
         queryable = request.SortOrder == SortOrder.Desc
             ? request.SortColumn switch
@@ -29,6 +30,7 @@ public class GetUsersQueryHandler(UserManager<User> userManager) : IQueryHandler
                 UserSortColumn.FirstName => queryable.OrderByDescending(u => u.FirstName),
                 UserSortColumn.LastName => queryable.OrderByDescending(u => u.LastName),
                 UserSortColumn.Email => queryable.OrderByDescending(u => u.Email),
+                UserSortColumn.FullName => queryable.OrderByDescending(u => u.FirstName).ThenByDescending(u => u.LastName),
                 _ => queryable.OrderByDescending(u => u.UserName)
             }
             : request.SortColumn switch
@@ -36,19 +38,23 @@ public class GetUsersQueryHandler(UserManager<User> userManager) : IQueryHandler
                 UserSortColumn.FirstName => queryable.OrderBy(u => u.FirstName),
                 UserSortColumn.LastName => queryable.OrderBy(u => u.LastName),
                 UserSortColumn.Email => queryable.OrderBy(u => u.Email),
+                UserSortColumn.FullName => queryable.OrderBy(u => u.FirstName).ThenBy(u => u.LastName),
                 _ => queryable.OrderBy(u => u.UserName)
             };
 
-        // PagedList handles Skip/Take/Count
-        var pagedList = await PagedList<User>.CreateAsync(queryable, request.Page ?? 1, request.PageSize ?? 15);
-
-        var userResponses = pagedList.Select(u => new UserResponse(
+        // Project to Response DTO
+        var responseQuery = queryable.Select(u => new UserResponse(
             u.Id,
             u.UserName,
             u.Email,
             u.FirstName,
             u.LastName
-        )).ToList();
+        ));
+
+        // PagedList handles Skip/Take/Count
+        var pagedList = await PagedList<UserResponse>.CreateAsync(responseQuery, request.Page ?? 1, request.PageSize ?? 15);
+
+        var userResponses = pagedList.ToList();
 
         var meta = new PaginationMeta
         {

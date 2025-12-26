@@ -100,11 +100,28 @@ public static class ServiceExtensions
 
         public void ConfigureSqlContext(IConfiguration configuration)
         {
-            services.AddDbContext<AppDbContext>((sp, opts) =>
+            var databaseSettings = configuration.GetSection("DatabaseSettings").Get<DatabaseSettings>();
+            var connectionString = configuration.GetConnectionString("sqlConnection");
+
+            services.AddDbContextFactory<AppDbContext>((sp, opts) =>
             {
-                opts.UseSqlServer(configuration.GetConnectionString("sqlConnection"));
+                switch (databaseSettings?.DBProvider?.ToLowerInvariant())
+                {
+                    case "mysql":
+                        opts.UseMySQL(connectionString!);
+                        break;
+                    case "mssql":
+                    default:
+                        opts.UseSqlServer(connectionString);
+                        break;
+                }
                 opts.AddInterceptors(sp.GetRequiredService<Interceptors.AuditInterceptor>());
             });
+        }
+
+        public void ConfigureDatabaseSettings(IConfiguration configuration)
+        {
+            services.Configure<DatabaseSettings>(configuration.GetSection("DatabaseSettings"));
         }
 
         public void ConfigureAppSettings(IConfiguration configuration)

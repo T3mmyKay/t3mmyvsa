@@ -5,5 +5,6 @@ public enum UserSortColumn
     FirstName,
     LastName,
     Email,
-    UserName
+    UserName,
+    FullName
 }
