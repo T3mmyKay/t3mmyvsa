@@ -5,5 +5,7 @@ public record UserResponse(
     string? UserName,
     string? Email,
     string? FirstName,
-    string? LastName
+    string? LastName,
+    List<string> Roles,
+    List<string> Permissions
 );

@@ -48,7 +48,9 @@ public class GetUsersQueryHandler(UserManager<User> userManager) : IQueryHandler
             u.UserName,
             u.Email,
             u.FirstName,
-            u.LastName
+            u.LastName,
+            new List<string>(),
+            new List<string>()
         ));
 
         // PagedList handles Skip/Take/Count
