@@ -29,6 +29,7 @@ jobs:
       - name: Pack Templates
         run: dotnet pack T3mmyvsa.Templates/T3mmyvsa.Templates.csproj -c Release --no-restore
 
+      # ========== GitHub Packages ==========
       - name: Add GitHub Packages source
         run: dotnet nuget add source --username ${{ github.actor }} --password ${{ secrets.GITHUB_TOKEN }} --store-password-in-clear-text --name github "https://nuget.pkg.github.com/T3mmyKay/index.json"
 
@@ -37,3 +38,11 @@ jobs:
 
       - name: Push Templates to GitHub Packages
         run: dotnet nuget push T3mmyvsa.Templates/bin/Release/*.nupkg --source "github" --skip-duplicate
+
+      # ========== NuGet.org ==========
+      - name: Push CLI to NuGet.org
+        run: dotnet nuget push T3mmyvsa.CLI/bin/Release/*.nupkg --api-key ${{ secrets.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json --skip-duplicate
+
+      - name: Push Templates to NuGet.org
+        run: dotnet nuget push T3mmyvsa.Templates/bin/Release/*.nupkg --api-key ${{ secrets.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json --skip-duplicate
+
