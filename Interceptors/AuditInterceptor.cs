@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore.Diagnostics;
 using T3mmyvsa.Attributes;
 using T3mmyvsa.Entities;
 using T3mmyvsa.Entities.Base;
+using Microsoft.AspNetCore.Identity;
 
 namespace T3mmyvsa.Interceptors;
 
@@ -43,7 +44,7 @@ public class AuditInterceptor(IHttpContextAccessor httpContextAccessor) : SaveCh
         var auditEntries = new List<AuditLog>();
 
         // 1. Handle AuditableEntity fields (CreatedAt, UpdatedAt, etc.)
-        foreach (var entry in context.ChangeTracker.Entries<AuditableEntity>())
+        foreach (var entry in context.ChangeTracker.Entries<IAuditableEntity>())
         {
             if (entry.State == EntityState.Added)
             {
@@ -58,18 +59,32 @@ public class AuditInterceptor(IHttpContextAccessor httpContextAccessor) : SaveCh
         }
 
         // 2. Generate Audit Logs for detailed tracking
-        foreach (var entry in context.ChangeTracker.Entries<BaseEntity>())
+        // We now iterate over all entries and filter for BaseEntity or User (IdentityUser)
+        foreach (var entry in context.ChangeTracker.Entries())
         {
             // Skip AuditLog entity itself to prevent infinite recursion
             if (entry.Entity is AuditLog || entry.State == EntityState.Detached || entry.State == EntityState.Unchanged)
                 continue;
+
+            // Filter for supported entities: BaseEntity (Guid Id) or User (string Id)
+            if (entry.Entity is not BaseEntity && entry.Entity is not User)
+                continue;
+
+            var primaryKey = entry.Entity switch
+            {
+                BaseEntity baseEntity => baseEntity.Id.ToString(),
+                IdentityUser identityUser => identityUser.Id,
+                _ => null
+            };
+
+            if (primaryKey is null) continue;
 
             var auditEntry = new AuditLog
             {
                 UserId = currentUser,
                 Type = entry.State.ToString(),
                 TableName = entry.Metadata.GetTableName() ?? entry.Entity.GetType().Name,
-                PrimaryKey = entry.Entity.Id.ToString(),
+                PrimaryKey = primaryKey,
                 Timestamp = now,
                 IpAddress = ipAddress,
                 UserAgent = userAgent

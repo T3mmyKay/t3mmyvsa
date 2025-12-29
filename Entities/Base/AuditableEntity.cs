@@ -4,7 +4,8 @@ namespace T3mmyvsa.Entities.Base;
 /// Auditable entity that tracks creation and modification metadata.
 /// Inherits time-ordered GUID from BaseEntity.
 /// </summary>
-public abstract class AuditableEntity : BaseEntity
+public abstract class AuditableEntity : BaseEntity, IAuditableEntity
+
 {
     public DateTimeOffset CreatedAt { get; set; }
     public string? CreatedBy { get; set; }
