@@ -18,7 +18,12 @@
     <RepositoryUrl>https://github.com/T3mmyKay/t3mmyvsa</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
   </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="README.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
 
   <ItemGroup>
     <Content Include="../T3mmyvsa.Web/**/*" Exclude="../T3mmyvsa.Web/**/bin/**;../T3mmyvsa.Web/**/obj/**;../T3mmyvsa.Web/.vs/**;../T3mmyvsa.Web/.git/**;../T3mmyvsa.Web/.idea/**;../T3mmyvsa.Web/logs/**">
