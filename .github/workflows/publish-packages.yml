@@ -1,0 +1,39 @@
+name: Publish NuGet Packages
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0
+
+      - name: Restore dependencies
+        run: dotnet restore
+
+      - name: Pack CLI
+        run: dotnet pack T3mmyvsa.CLI/T3mmyvsa.CLI.csproj -c Release --no-restore
+
+      - name: Pack Templates
+        run: dotnet pack T3mmyvsa.Templates/T3mmyvsa.Templates.csproj -c Release --no-restore
+
+      - name: Add GitHub Packages source
+        run: dotnet nuget add source --username ${{ github.actor }} --password ${{ secrets.GITHUB_TOKEN }} --store-password-in-clear-text --name github "https://nuget.pkg.github.com/T3mmyKay/index.json"
+
+      - name: Push CLI to GitHub Packages
+        run: dotnet nuget push T3mmyvsa.CLI/bin/Release/*.nupkg --source "github" --skip-duplicate
+
+      - name: Push Templates to GitHub Packages
+        run: dotnet nuget push T3mmyvsa.Templates/bin/Release/*.nupkg --source "github" --skip-duplicate
