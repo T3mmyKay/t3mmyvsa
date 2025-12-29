@@ -37,7 +37,8 @@ public class GetCurrentUserQueryHandler(
             user.FirstName,
             user.LastName,
             [.. roles],
-            [.. permissions]
+            [.. permissions],
+            user.CreatedAt
         );
     }
 }

@@ -7,5 +7,6 @@ public record CurrentUserResponse(
     string? FirstName,
     string? LastName,
     List<string> Roles,
-    List<string> Permissions
+    List<string> Permissions,
+    DateTimeOffset CreatedAt
 );

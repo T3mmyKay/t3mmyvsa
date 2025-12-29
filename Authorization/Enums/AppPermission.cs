@@ -17,5 +17,8 @@ public enum AppPermission
     UsersView,
     
     [Description("Users.ManageRoles")]
-    UsersManageRoles
+    UsersManageRoles,
+
+    [Description("Users.ViewActivity")]
+    UsersViewActivity
 }
