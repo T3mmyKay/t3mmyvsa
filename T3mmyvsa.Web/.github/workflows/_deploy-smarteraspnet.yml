@@ -1,0 +1,65 @@
+name: Build and Deploy to SmarterASP.NET
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build_and_deploy:
+    runs-on: windows-latest
+    env:
+      ASPNETCORE_ENVIRONMENT: Production
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0
+
+      - name: Restore dependencies
+        run: dotnet restore T3mmyvsa.csproj
+
+      - name: Install EF Core tools
+        run: dotnet tool install --global dotnet-ef --version 10.0.1
+
+      - name: Update Database
+        run: |
+          dotnet ef database update --context=AppDbContext --connection "${{ secrets.DB_CONNECTION_STRING }}" --project T3mmyvsa.csproj
+
+      - name: Publish
+        run: |
+          dotnet publish T3mmyvsa.csproj --configuration Release --output ./release
+          Remove-Item -Path ./release/BuildHost-* -Recurse -Force -ErrorAction SilentlyContinue
+
+      - name: Deploy to SmarterASP.NET
+        shell: pwsh
+        run: |
+          $msdeploy = "C:\Program Files (x86)\IIS\Microsoft Web Deploy V3\msdeploy.exe"
+
+          # Parameters (store sensitive data in GitHub Secrets)
+          $recycleApp = "${{secrets.WEBSITE_NAME}}"
+          $computerName = "${{secrets.SERVER_COMPUTER_NAME}}"
+          $username = "${{ secrets.SERVER_USERNAME }}"
+          $password = "${{ secrets.SERVER_PASSWORD }}"
+
+          # Build computerName argument
+          $computerNameArgument = "$computerName/MsDeploy.axd?site=$recycleApp"
+
+          # Construct MSDeploy arguments
+          $msdeployArguments = @(
+              "-verb:sync",
+              "-source:contentPath=$pwd/release",
+              "-dest:contentPath=$recycleApp/,computerName=$computerNameArgument,username=$username,password=$password,IncludeAcls=False,AuthType=Basic",
+              "-allowUntrusted",
+              "-enableRule:AppOffline",
+              "-enableRule:DoNotDeleteRule",
+              "-disableLink:AppPoolExtension",
+              "-disableLink:ContentExtension",
+              "-disableLink:CertificateExtension"
+          )
+
+          # Execute deployment
+          & $msdeploy $msdeployArguments

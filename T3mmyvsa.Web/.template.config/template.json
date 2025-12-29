@@ -28,7 +28,26 @@
             "logs/**",
             "**/*.user",
             "RULES.md"
-          ]
+          ],
+          "rename": {
+            ".github/workflows/_deploy-smarteraspnet.yml": ".github/workflows/deploy-smarteraspnet.yml"
+          }
+        }
+      ]
+    }
+  ],
+  "postActions": [
+    {
+      "actionId": "3A63A278-6E78-4D20-B5DC-D8F965E4750A",
+      "description": "Installing T3mmyVSA CLI Tool...",
+      "args": {
+        "executable": "dotnet",
+        "args": "tool install -g T3mmyvsa.CLI"
+      },
+      "continueOnError": true,
+      "manualInstructions": [
+        {
+          "text": "The project was created successfully. To use the scaffolding features, run 'dotnet tool install -g T3mmyvsa.CLI'."
         }
       ]
     }

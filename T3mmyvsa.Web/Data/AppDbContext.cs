@@ -6,6 +6,8 @@ namespace T3mmyvsa.Data;
 public class AppDbContext(DbContextOptions<AppDbContext> options) : IdentityDbContext<User>(options)
 {
     public DbSet<AuditLog> AuditLogs { get; set; }
+    public DbSet<NamespaceTest> NamespaceTests { get; set; }
+
 
     protected override void OnModelCreating(ModelBuilder builder)
     {

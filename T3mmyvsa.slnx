@@ -1,3 +1,5 @@
 <Solution>
-  <Project Path="T3mmyvsa.csproj" />
+  <Project Path="T3mmyvsa.Web/T3mmyvsa.csproj" />
+  <Project Path="T3mmyvsa.CLI/T3mmyvsa.CLI.csproj" />
+  <Project Path="T3mmyvsa.Templates/T3mmyvsa.Templates.csproj" />
 </Solution>

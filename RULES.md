@@ -3,7 +3,14 @@
 ## 1. Vertical Slice Architecture
 
 - **Structure**: Organize code by **Features** (Use Cases) rather than technical layers.
-- **Exceptions**: Cross-cutting concerns and shared infrastructure (like Identity configuration, generic Services) should reside in dedicated top-level folders defined below.
+- **Path**: `Features/[Domain]/[UseCase]` (e.g., `Features/Users/CreateUser`).
+- **Components**: Each feature slice should be self-contained and typically includes:
+    - **Endpoint**: `ICarterModule` implementation for route definition.
+    - **Handler**: `ICommandHandler` or `IQueryHandler` for business logic.
+    - **Command/Query**: Record types defining the input.
+    - **Validator**: `AbstractValidator<T>` for input validation.
+    - **Response**: DTOs for output (e.g., `UserResponse`).
+- **Exceptions**: Cross-cutting concerns and shared infrastructure (Identity, generic Services) reside in `T3mmyvsa.Web` root folders.
 
 ## 2. File Organization
 
@@ -11,47 +18,66 @@
 - **File Naming**: Check that file names exactly match the type name they contain.
 - **Constructors**: Use **Primary Constructors** for all class definitions where dependency injection is used.
 
-## 3. Coding Style
+## 3. CLI Tools & Scaffolding
 
-- **Object Initialization**: Use **simplified object initialization** syntax (e.g., `new T { Prop = val }`) instead of setting properties after construction.
+Use the **T3mmyvsa CLI** to maintain consistency and speed up development.
 
-## 4. Interfaces
+- **Make Entity**:
+  ```bash
+  dotnet t3mmyvsa make:entity <EntityName>
+  ```
+  - Creates Entity in `Entities/`.
+  - Creates Configuration in `Data/Configurations/`.
+  - Updates `AppDbContext` to include the `DbSet`.
 
-- **Location**: Interfaces, especially for shared services, should represent a contract and must be placed in a distinct `Interfaces` folder or namespace (e.g., `Services/Interfaces`).
+- **Make Feature**:
+  ```bash
+  dotnet t3mmyvsa make:feature <EntityName>
+  ```
+  - Scaffolds a complete CRUD set in `Features/<EntityName>s/`.
+  - Generates: `Create`, `Update`, `Delete`, `Get`, `GetList`, `BulkDelete`.
+  - Automatically adds permissions to `AppPermission.cs`.
+
+## 4. Coding Style & Standards
+
+- **Object Initialization**: Use **simplified object initialization** (e.g., `new T { Prop = val }`).
+- **Pagination**: Use `PaginatedResponse<T>` for all list endpoints.
+- **Query Parameters**: Use `[AsParameters]` in endpoints to bind query objects (e.g., `GetUsersRequest`).
+- **Result Pattern**: Mutations (Create/Update/Delete) should return `ResultResponse`.
+
+## 5. Interfaces
+
+- **Location**: Interfaces for shared services must be in `Interfaces` folder.
 - **Naming**: Interface names must be prefixed with `I` (e.g., `IEmailService`).
 
-## 5. Authorization & Identity
+## 6. Authorization & Identity
 
-- **Role-Based Access Control (RBAC)**: Use ASP.NET Core Identity Roles.
-- **Claims-Based**: Assign permissions as Claims to Roles.
-- **Configuration**: Ensure `AddRoles<IdentityRole>()` is called in Identity setup.
+- **RBAC**: Use ASP.NET Core Identity Roles.
+- **Permissions**: Defined in `Authorization/Enums/AppPermission.cs`.
+- **Endpoint Security**: Use `.HasPermissions(AppPermission.X)` extension on Carter endpoints.
 
-## 6. Logging
+## 7. Logging
 
-- **Serilog**: configuration is mandatory.
-- **Sinks**: Must support at least Console and File sinks.
-- **Configuration**: Setup Serilog in `appsettings.json` and initialize it in `Program.cs`.
+- **Serilog**: Mandatory configuration.
+- **Sinks**: Console and File sinks required.
+- **Enrichment**: Use `FromLogContext`.
 
-## 7. Dependency Injection
+## 8. Dependency Injection
 
-- **Scrutor**: Use Scrutor for service registration.
-- **Auto-Scanning**: Avoid manual Service Registration.
+- **Scrutor**: Used for automatic service registration.
 - **Lifetimes**:
-  - **Attributes**: Use `[ScopedService]`, `[SingletonService]`, or `[TransientService]` to explicitly define lifetime.
-  - **Default**: Services ending in "Service" without attributes defaults to **Transient**.
+  - `[ScopedService]`, `[SingletonService]`, `[TransientService]` attributes.
+  - Default: Classes ending in "Service" are **Transient** if no attribute is present.
 
-## 8. Configuration & Options Pattern
+## 9. Configuration & Options
 
-- **Options Pattern**: Use `services.Configure<T>()` for all configuration binding.
-- **Settings Classes**: Create dedicated settings classes in `Configuration/` folder.
-- **Naming**: Settings class names must end with `Settings` (e.g., `JwtSettings`, `MailSettings`).
-- **Injection**: Inject settings via `IOptions<T>`, `IOptionsSnapshot<T>`, or `IOptionsMonitor<T>`.
-- **Avoid**: Do not read directly from `IConfiguration` using indexers (e.g., `config["Key"]`).
+- **Options Pattern**: Use `services.Configure<T>()`.
+- **Settings Classes**: Located in `Configuration/`, named `*Settings`.
+- **Injection**: Inject via `IOptions<T>`.
 
-## 9. Entity & Data Configuration
+## 10. Entity & Data Configuration
 
-- **Base Entities**: All domain entities should inherit from `BaseEntity` or `AuditableEntity`.
-- **Guid.CreateVersion7**: Use `Guid.CreateVersion7()` for primary key generation (time-ordered UUIDs).
-- **Entity Configuration**: Use `IEntityTypeConfiguration<T>` for fluent entity configuration. All entity configurations must reside in `Data/Configurations/` folder.
-- **Configuration Discovery**: `ApplyConfigurationsFromAssembly` is used for automatic configuration discovery.
-- **Audit Interceptor**: `AuditInterceptor` automatically populates audit fields (`CreatedAt`, `CreatedBy`, `UpdatedAt`, `UpdatedBy`) on save.
+- **Base Entities**: Inherit from `BaseEntity` or `AuditableEntity`.
+- **IDs**: Use `Guid.CreateVersion7()` for time-ordered UUIDs.
+- **Configuration**: `IEntityTypeConfiguration<T>` in `Data/Configurations/`.
+- **Auditing**: Handled automatically via `AuditInterceptor`.

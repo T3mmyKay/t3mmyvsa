@@ -19,8 +19,9 @@ A reusable .NET project template based on the Vertical Slice Architecture.
 - **API Versioning**: Built-in support.
 - **OpenAPI/Scalar**: Verification and testing UI (Scalar).
 - **Background Jobs**: TickerQ for high-performance, reflection-free distributed job scheduling.
+- **CLI Tooling**: Dedicated CLI (`dotnet t3mmyvsa`) for scaffolding entities and features involving full CRUD operations.
 
-## Getting Started
+## Gets Started
 
 ### Prerequisites
 
@@ -32,7 +33,7 @@ A reusable .NET project template based on the Vertical Slice Architecture.
 1. **Install the Template**
 
    ```bash
-   dotnet new install .
+   dotnet new install ./T3mmyvsa.Web
    ```
 
 2. **Create a New Project**
@@ -41,7 +42,13 @@ A reusable .NET project template based on the Vertical Slice Architecture.
    dotnet new t3mmyvsa -n YourProjectName
    ```
 
-3. **Verify**
+3. **Install the CLI Tool** (Recommended)
+
+   ```bash
+   dotnet tool install -g T3mmyvsa.CLI
+   ```
+
+4. **Verify**
    Open the solution in your IDE.
 
 ### Parameters
@@ -50,14 +57,32 @@ A reusable .NET project template based on the Vertical Slice Architecture.
 | --------- | ----- | ------------------------ | ---------------------- |
 | `--name`  | `-n`  | The name of the project. | Current directory name |
 
+## CLI Tool Usage
+
+The template includes a powerful CLI tool to accelerate development.
+
+### Create an Entity
+Scaffolds a new entity, configuration, and updates the DbContext.
+
+```bash
+dotnet t3mmyvsa make:entity YourEntityName
+```
+
+### Create a Feature
+Scaffolds a full set of CRUD features (Create, Update, Delete, Get, GetList, BulkDelete) for an existing entity.
+
+```bash
+dotnet t3mmyvsa make:feature YourEntityName
+```
+
 ## Project Structure
 
 The generated project follows the Vertical Slice Architecture:
 
-- `Features/`: Contains the application logic features.
+- `Features/`: Contains the application logic features (sliced by domain).
 - `Data/`: Database context and configurations.
 - `Entities/`: Domain entities.
-- `api/`: API endpoints (organized by feature or via generic controllers).
+- `Authorization/`: Permissions and policies.
 
 ## Background Jobs
 
@@ -89,11 +114,12 @@ public partial class MyJob
 If you have modified the local template source, you can update the installed version by running:
 
 ```bash
-dotnet new install --force .
+dotnet new install --force ./T3mmyvsa.Web
 ```
 
-(Note: Replace `.` with the actual path to your template source if you are running this from a different location).
+(Note: Replace `./T3mmyvsa.Web` with the actual path to your template source if you are running this from a different location).
 
 ## License
 
 Distributed under the MIT License. See `LICENSE` for more information.
+

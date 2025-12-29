@@ -1,6 +1,6 @@
 using T3mmyvsa.Authorization.Enums;
-using T3mmyvsa.Extensions;
 using T3mmyvsa.Models.Shared;
+using T3mmyvsa.Extensions;
 
 namespace T3mmyvsa.Features.Users.GetUsers;
 

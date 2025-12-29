@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <PackageType>Template</PackageType>
+    <PackageId>T3mmy.VSA.Templates</PackageId>
+    <Title>T3mmyVSA Templates</Title>
+    <Authors>T3mmy</Authors>
+    <Description>Templates for T3mmyVSA Vertical Slice Architecture.</Description>
+    <PackageTags>dotnet-new;templates;webapi;vertical-slice-architecture</PackageTags>
+    <TargetFramework>net10.0</TargetFramework>
+
+    <IncludeContentInPack>true</IncludeContentInPack>
+    <IncludeBuildOutput>false</IncludeBuildOutput>
+    <ContentTargetFolders>content</ContentTargetFolders>
+    <NoWarn>$(NoWarn);NU5128</NoWarn>
+    <NoDefaultExcludes>true</NoDefaultExcludes>
+    <Version>1.0.0</Version>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Content Include="../T3mmyvsa.Web/**/*" Exclude="../T3mmyvsa.Web/**/bin/**;../T3mmyvsa.Web/**/obj/**;../T3mmyvsa.Web/.vs/**;../T3mmyvsa.Web/.git/**;../T3mmyvsa.Web/.idea/**;../T3mmyvsa.Web/logs/**">
+      <PackagePath>content/T3mmy.VSA.Templates</PackagePath>
+    </Content>
+  </ItemGroup>
+
+</Project>
