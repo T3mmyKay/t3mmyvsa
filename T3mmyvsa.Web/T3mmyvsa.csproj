@@ -7,8 +7,7 @@
         <RootNamespace>T3mmyvsa</RootNamespace>
         <AssemblyName>T3mmyvsa</AssemblyName>
         <InterceptorsNamespaces>$(InterceptorsNamespaces);Microsoft.AspNetCore.Http.Validation.Generated</InterceptorsNamespaces>
-        <RepositoryUrl>https://github.com/T3mmyKay/t3mmyvsa</RepositoryUrl>
-
+        <AspNetCoreHostingModel>OutOfProcess</AspNetCoreHostingModel>
         <!-- OpenAPI build-time generation settings -->
         <OpenApiGenerateDocuments>true</OpenApiGenerateDocuments>
         <OpenApiDocumentsDirectory>wwwroot/openapi</OpenApiDocumentsDirectory>
