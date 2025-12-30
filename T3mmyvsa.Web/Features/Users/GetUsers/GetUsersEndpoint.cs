@@ -8,9 +8,9 @@ public class GetUsersEndpoint : ICarterModule
 {
     public void AddRoutes(IEndpointRouteBuilder app)
     {
-        app.MapGet("users", async ([AsParameters] GetUsersRequest request, IMediator mediator, CancellationToken ct) =>
+        app.MapGet("users", async ([AsParameters] GetUsersQuery query, IMediator mediator, CancellationToken ct) =>
         {
-            var response = await mediator.SendQueryAsync<GetUsersQuery, PaginatedResponse<UserResponse>>(new GetUsersQuery(request), ct);
+            var response = await mediator.SendQueryAsync<GetUsersQuery, PaginatedResponse<UserResponse>>(query, ct);
             return Results.Ok(response);
         })
         .HasApiVersion(1)

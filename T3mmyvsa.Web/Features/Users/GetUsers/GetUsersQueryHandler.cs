@@ -7,14 +7,12 @@ public class GetUsersQueryHandler(UserManager<User> userManager) : IQueryHandler
 {
     public async Task<PaginatedResponse<UserResponse>> Handle(GetUsersQuery query, CancellationToken cancellationToken)
     {
-        var request = query.Request;
-
         var queryable = userManager.Users.AsNoTracking();
 
         // Search
-        if (!string.IsNullOrWhiteSpace(request.Search))
+        if (!string.IsNullOrWhiteSpace(query.Search))
         {
-            var search = request.Search.Trim();
+            var search = query.Search.Trim();
             queryable = queryable.Where(u =>
                 (u.Email != null && u.Email.Contains(search)) ||
                 (u.UserName != null && u.UserName.Contains(search)) ||
@@ -24,8 +22,8 @@ public class GetUsersQueryHandler(UserManager<User> userManager) : IQueryHandler
         }
 
         // Sorting
-        queryable = request.SortOrder == SortOrder.Desc
-            ? request.SortColumn switch
+        queryable = query.SortOrder == SortOrder.Desc
+            ? query.SortColumn switch
             {
                 UserSortColumn.FirstName => queryable.OrderByDescending(u => u.FirstName),
                 UserSortColumn.LastName => queryable.OrderByDescending(u => u.LastName),
@@ -33,7 +31,7 @@ public class GetUsersQueryHandler(UserManager<User> userManager) : IQueryHandler
                 UserSortColumn.FullName => queryable.OrderByDescending(u => u.FirstName).ThenByDescending(u => u.LastName),
                 _ => queryable.OrderByDescending(u => u.UserName)
             }
-            : request.SortColumn switch
+            : query.SortColumn switch
             {
                 UserSortColumn.FirstName => queryable.OrderBy(u => u.FirstName),
                 UserSortColumn.LastName => queryable.OrderBy(u => u.LastName),
@@ -54,7 +52,7 @@ public class GetUsersQueryHandler(UserManager<User> userManager) : IQueryHandler
         ));
 
         // PagedList handles Skip/Take/Count
-        var pagedList = await PagedList<UserResponse>.CreateAsync(responseQuery, request.Page ?? 1, request.PageSize ?? 15);
+        var pagedList = await PagedList<UserResponse>.CreateAsync(responseQuery, query.Page ?? 1, query.PageSize ?? 15);
 
         var userResponses = pagedList.ToList();
 
@@ -71,10 +69,10 @@ public class GetUsersQueryHandler(UserManager<User> userManager) : IQueryHandler
 
         var links = new PaginationLinks
         {
-            First = $"?page=1&per_page={pagedList.PageSize}&search={request.Search}&sort_column={request.SortColumn}&sort_order={request.SortOrder}",
-            Last = $"?page={pagedList.TotalPages}&per_page={pagedList.PageSize}&search={request.Search}&sort_column={request.SortColumn}&sort_order={request.SortOrder}",
-            Prev = pagedList.HasPrevious ? $"?page={pagedList.CurrentPage - 1}&per_page={pagedList.PageSize}&search={request.Search}&sort_column={request.SortColumn}&sort_order={request.SortOrder}" : null,
-            Next = pagedList.HasNext ? $"?page={pagedList.CurrentPage + 1}&per_page={pagedList.PageSize}&search={request.Search}&sort_column={request.SortColumn}&sort_order={request.SortOrder}" : null
+            First = $"?page=1&per_page={pagedList.PageSize}&search={query.Search}&sort_column={query.SortColumn}&sort_order={query.SortOrder}",
+            Last = $"?page={pagedList.TotalPages}&per_page={pagedList.PageSize}&search={query.Search}&sort_column={query.SortColumn}&sort_order={query.SortOrder}",
+            Prev = pagedList.HasPrevious ? $"?page={pagedList.CurrentPage - 1}&per_page={pagedList.PageSize}&search={query.Search}&sort_column={query.SortColumn}&sort_order={query.SortOrder}" : null,
+            Next = pagedList.HasNext ? $"?page={pagedList.CurrentPage + 1}&per_page={pagedList.PageSize}&search={query.Search}&sort_column={query.SortColumn}&sort_order={query.SortOrder}" : null
         };
 
         return new PaginatedResponse<UserResponse>(userResponses, meta, links);
