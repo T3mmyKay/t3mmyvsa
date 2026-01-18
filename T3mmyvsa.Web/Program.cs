@@ -1,5 +1,6 @@
 using Scalar.AspNetCore;
 using Serilog;
+using Serilog.Exceptions;
 using TickerQ.DependencyInjection;
 using T3mmyvsa.Data;
 using T3mmyvsa.Extensions;
@@ -19,7 +20,8 @@ try
     builder.Host.UseSerilog((context, services, configuration) => configuration
         .ReadFrom.Configuration(context.Configuration)
         .ReadFrom.Services(services)
-        .Enrich.FromLogContext());
+        .Enrich.FromLogContext()
+        .Enrich.WithExceptionDetails());
 
     builder.Services.AddOpenApi("v1", options =>
     {
@@ -31,6 +33,7 @@ try
     });
 
     builder.Services.ConfigureSqlContext(builder.Configuration);
+    builder.Services.ConfigureDbConnection(builder.Configuration);
     builder.Services.ConfigureIdentity();
     builder.Services.ConfigureJwt(builder.Configuration);
     builder.Services.ConfigureMail(builder.Configuration);

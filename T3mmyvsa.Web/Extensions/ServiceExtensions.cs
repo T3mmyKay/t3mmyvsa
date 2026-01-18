@@ -119,6 +119,13 @@ public static class ServiceExtensions
             });
         }
 
+        public void ConfigureDbConnection(IConfiguration configuration)
+        {
+            var connectionString = configuration.GetConnectionString("sqlConnection");
+            services.AddScoped<System.Data.IDbConnection>(_ =>
+                new Microsoft.Data.SqlClient.SqlConnection(connectionString));
+        }
+
         public void ConfigureDatabaseSettings(IConfiguration configuration)
         {
             services.Configure<DatabaseSettings>(configuration.GetSection("DatabaseSettings"));
