@@ -73,10 +73,13 @@ public static class ServiceExtensions
 
         public void ConfigureJwt(IConfiguration configuration)
         {
-            var jwtSettingsSection = configuration.GetSection("JwtSettings");
-            services.Configure<JwtSettings>(jwtSettingsSection);
+            // Register and validate JwtSettings
+            services.AddOptions<JwtSettings>()
+                .BindConfiguration("JwtSettings")
+                .ValidateFluentValidation()
+                .ValidateOnStart();
 
-            var jwtSettings = jwtSettingsSection.Get<JwtSettings>()!;
+            var jwtSettings = configuration.GetSection("JwtSettings").Get<JwtSettings>()!;
 
             services.AddAuthentication(opt =>
                 {
@@ -128,17 +131,26 @@ public static class ServiceExtensions
 
         public void ConfigureDatabaseSettings(IConfiguration configuration)
         {
-            services.Configure<DatabaseSettings>(configuration.GetSection("DatabaseSettings"));
+            services.AddOptions<DatabaseSettings>()
+                .BindConfiguration("DatabaseSettings")
+                .ValidateFluentValidation()
+                .ValidateOnStart();
         }
 
         public void ConfigureAppSettings(IConfiguration configuration)
         {
-            services.Configure<AppSettings>(configuration.GetSection("AppSettings"));
+            services.AddOptions<AppSettings>()
+                .BindConfiguration("AppSettings")
+                .ValidateFluentValidation()
+                .ValidateOnStart();
         }
 
         public void ConfigureMail(IConfiguration configuration)
         {
-            services.Configure<MailSettings>(configuration.GetSection("MailSettings"));
+            services.AddOptions<MailSettings>()
+                .BindConfiguration("MailSettings")
+                .ValidateFluentValidation()
+                .ValidateOnStart();
         }
 
         public void ConfigureServiceScanning()
