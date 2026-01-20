@@ -25,4 +25,24 @@ public static class OptionsBuilderFluentValidationExtensions
 
         return builder;
     }
+
+    /// <summary>
+    /// Configuration extension that adds options with FluentValidation and ValidateOnStart
+    /// </summary>
+    /// <typeparam name="TOptions">The options type</typeparam>
+    /// <param name="services">The service collection</param>
+    /// <param name="configurationSection">The configuration section name to bind to</param>
+    /// <returns>The service collection for chaining</returns>
+    public static IServiceCollection AddOptionsWithFluentValidation<TOptions>(
+        this IServiceCollection services,
+        string configurationSection)
+        where TOptions : class
+    {
+        services.AddOptions<TOptions>()
+            .BindConfiguration(configurationSection)
+            .ValidateFluentValidation()
+            .ValidateOnStart();
+
+        return services;
+    }
 }

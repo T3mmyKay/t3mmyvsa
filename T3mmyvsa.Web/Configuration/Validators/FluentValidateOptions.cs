@@ -21,11 +21,12 @@ public sealed class FluentValidateOptions<TOptions> : IValidateOptions<TOptions>
 
     public ValidateOptionsResult Validate(string? name, TOptions options)
     {
-        // Skip if this is for a different named options instance
         if (_name is not null && _name != name)
         {
             return ValidateOptionsResult.Skip;
         }
+
+        ArgumentNullException.ThrowIfNull(options);
 
         // Create a scope to resolve scoped validators
         using var scope = _serviceProvider.CreateScope();
@@ -38,9 +39,14 @@ public sealed class FluentValidateOptions<TOptions> : IValidateOptions<TOptions>
             return ValidateOptionsResult.Success;
         }
 
-        var errors = result.Errors
-            .Select(e => $"{typeof(TOptions).Name}.{e.PropertyName}: {e.ErrorMessage}");
-        
+        var type = options.GetType().Name;
+        var errors = new List<string>();
+
+        foreach (var failure in result.Errors)
+        {
+            errors.Add($"Validation failed for {type}.{failure.PropertyName} with the error: {failure.ErrorMessage}");
+        }
+
         return ValidateOptionsResult.Fail(errors);
     }
 }
