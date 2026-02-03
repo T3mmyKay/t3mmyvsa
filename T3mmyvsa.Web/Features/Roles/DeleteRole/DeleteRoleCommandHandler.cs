@@ -1,6 +1,6 @@
-using VehicleRegistry.Authorization.Enums;
+using T3mmyvsa.Authorization.Enums;
 
-namespace VehicleRegistry.Features.Roles.DeleteRole;
+namespace T3mmyvsa.Features.Roles.DeleteRole;
 
 public class DeleteRoleCommandHandler(RoleManager<IdentityRole> roleManager)
     : ICommandHandler<DeleteRoleCommand, DeleteRoleResponse>

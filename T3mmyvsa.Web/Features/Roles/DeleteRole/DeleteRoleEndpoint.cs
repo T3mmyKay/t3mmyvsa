@@ -1,7 +1,7 @@
-using VehicleRegistry.Authorization.Enums;
-using VehicleRegistry.Extensions;
+using T3mmyvsa.Authorization.Enums;
+using T3mmyvsa.Extensions;
 
-namespace VehicleRegistry.Features.Roles.DeleteRole;
+namespace T3mmyvsa.Features.Roles.DeleteRole;
 
 public class DeleteRoleEndpoint : ICarterModule
 {
