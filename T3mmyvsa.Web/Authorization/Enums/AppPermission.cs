@@ -13,8 +13,20 @@ public enum AppPermission
     [Description("Roles.Update")]
     RolesUpdate,
 
+    [Description("Roles.Delete")]
+    RolesDelete,
+
     [Description("Users.View")]
     UsersView,
+
+    [Description("Users.Create")]
+    UsersCreate,
+
+    [Description("Users.Update")]
+    UsersUpdate,
+
+    [Description("Users.Delete")]
+    UsersDelete,
 
     [Description("Users.ManageRoles")]
     UsersManageRoles,
@@ -22,6 +34,11 @@ public enum AppPermission
     [Description("Users.ViewActivity")]
     UsersViewActivity,
 
+    [Description("Users.Deactivate")]
+    UsersDeactivate,
+
+    [Description("Users.Activate")]
+    UsersActivate,
 
 
     [Description("NamespaceTests.View")]
