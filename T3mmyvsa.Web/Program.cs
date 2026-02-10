@@ -26,10 +26,12 @@ try
     builder.Services.AddOpenApi("v1", options =>
     {
         options.AddDocumentTransformer<BearerSecuritySchemeTransformer>();
+        options.AddDocumentTransformer<ServerUrlTransformer>();
     });
     builder.Services.AddOpenApi("v2", options =>
     {
         options.AddDocumentTransformer<BearerSecuritySchemeTransformer>();
+        options.AddDocumentTransformer<ServerUrlTransformer>();
     });
 
     builder.Services.ConfigureSqlContext(builder.Configuration);
