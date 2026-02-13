@@ -42,6 +42,8 @@
         <PackageReference Include="QuestPDF" />
         <PackageReference Include="QuestPDF.HTML" />
         <PackageReference Include="Riok.Mapperly" />
+        <PackageReference Include="Refit" />
+        <PackageReference Include="Refit.HttpClientFactory" />
         <PackageReference Include="Scalar.AspNetCore" />
         <PackageReference Include="Scrutor" />
         <PackageReference Include="Serilog" />
