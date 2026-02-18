@@ -32,6 +32,30 @@ public static class AuthorizationExtensions
         }
 
         /// <summary>
+        /// Requires the user to have at least one of the specified roles.
+        /// </summary>
+        /// <param name="roles">The allowed roles (user must have at least one).</param>
+        /// <returns>The route handler builder for chaining.</returns>
+        public RouteHandlerBuilder HasAnyRole(params string[] roles)
+        {
+            ArgumentNullException.ThrowIfNull(roles);
+
+            if (roles.Length == 0)
+                throw new ArgumentException("At least one role must be specified.", nameof(roles));
+
+            string policyName = $"HasAnyRole:{string.Join(",", roles)}";
+            return builder.RequireAuthorization(policyName);
+        }
+
+        /// <summary>
+        /// Requires the user to have at least one of the specified roles.
+        /// </summary>
+        public RouteHandlerBuilder HasAnyRole(params AppRole[] roles)
+        {
+            return builder.HasAnyRole(roles.Select(r => r.ToString()).ToArray());
+        }
+
+        /// <summary>
         /// Requires the user to have all of the specified permissions.
         /// </summary>
         /// <param name="permissions">The required permissions (user must have all).</param>

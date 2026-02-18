@@ -50,10 +50,21 @@ public class PermissionAuthorizationHandler(IServiceScopeFactory serviceScopeFac
             }
         }
 
+
         // Check if user has all required permissions
-        if (requirement.RequiredPermissions.All(p => userPermissions.Contains(p)))
+        if (requirement.RequireAll)
         {
-            context.Succeed(requirement);
+            if (requirement.RequiredPermissions.All(p => userPermissions.Contains(p)))
+            {
+                context.Succeed(requirement);
+            }
+        }
+        else
+        {
+            if (requirement.RequiredPermissions.Any(p => userPermissions.Contains(p)))
+            {
+                context.Succeed(requirement);
+            }
         }
     }
 }

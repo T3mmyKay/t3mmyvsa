@@ -14,10 +14,22 @@ public class RoleAuthorizationHandler : AuthorizationHandler<RoleRequirement>
             return Task.CompletedTask;
         }
 
-        // Check if user has any of the allowed roles
-        if (requirement.AllowedRoles.Any(role => context.User.IsInRole(role)))
+
+        if (requirement.RequireAll)
         {
-            context.Succeed(requirement);
+            // Check if user has ALL of the required roles
+            if (requirement.AllowedRoles.All(role => context.User.IsInRole(role)))
+            {
+                context.Succeed(requirement);
+            }
+        }
+        else
+        {
+            // Check if user has ANY of the allowed roles
+            if (requirement.AllowedRoles.Any(role => context.User.IsInRole(role)))
+            {
+                context.Succeed(requirement);
+            }
         }
 
         return Task.CompletedTask;
