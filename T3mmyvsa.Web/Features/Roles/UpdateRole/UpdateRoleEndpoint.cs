@@ -7,11 +7,13 @@ public class UpdateRoleEndpoint : ICarterModule
 {
     public void AddRoutes(IEndpointRouteBuilder app)
     {
-        app.MapPut("roles/{id:guid}", async (string id, [FromBody] UpdateRoleRequest request, IMediator mediator, CancellationToken ct) =>
+        app.MapPut("roles/{id:guid}", async (string id, [FromBody] UpdateRoleCommand command, IMediator mediator, CancellationToken ct) =>
         {
+            if (id != command.Id) return Results.BadRequest("Mismatched ID.");
+
             try
             {
-                var response = await mediator.SendCommandAsync<UpdateRoleCommand, UpdateRoleResponse>(new UpdateRoleCommand(id, request.RoleName), ct);
+                var response = await mediator.SendCommandAsync<UpdateRoleCommand, UpdateRoleResponse>(command, ct);
                 return Results.Ok(response);
             }
             catch (KeyNotFoundException)
@@ -37,5 +39,3 @@ public class UpdateRoleEndpoint : ICarterModule
         .HasPermissions(AppPermission.RolesUpdate);
     }
 }
-
-public record UpdateRoleRequest(string RoleName);

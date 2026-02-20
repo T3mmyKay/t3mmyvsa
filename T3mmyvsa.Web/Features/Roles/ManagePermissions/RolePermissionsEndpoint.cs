@@ -29,11 +29,13 @@ public class RolePermissionsEndpoint : ICarterModule
         .ProducesProblem(StatusCodes.Status404NotFound)
         .HasPermissions(AppPermission.RolesView);
 
-        group.MapPut("", async (string id, [FromBody] UpdateRolePermissionsRequest request, IMediator mediator, CancellationToken ct) =>
+        group.MapPut("", async (string id, [FromBody] UpdateRolePermissionsCommand command, IMediator mediator, CancellationToken ct) =>
         {
+            if (id != command.RoleId) return Results.BadRequest("Mismatched ID.");
+
             try
             {
-                await mediator.SendCommandAsync<UpdateRolePermissionsCommand>(new UpdateRolePermissionsCommand(id, request.Permissions), ct);
+                await mediator.SendCommandAsync<UpdateRolePermissionsCommand>(command, ct);
                 return Results.NoContent();
             }
             catch (KeyNotFoundException) { return Results.NotFound(); }
@@ -51,5 +53,3 @@ public class RolePermissionsEndpoint : ICarterModule
         .HasPermissions(AppPermission.RolesUpdate);
     }
 }
-
-public record UpdateRolePermissionsRequest(List<string> Permissions);

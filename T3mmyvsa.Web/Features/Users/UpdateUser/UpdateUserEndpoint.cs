@@ -7,9 +7,9 @@ public class UpdateUserEndpoint : ICarterModule
 {
     public void AddRoutes(IEndpointRouteBuilder app)
     {
-        app.MapPut("users/{id:guid}", async (Guid id, [FromBody] UpdateUserRequest request, IMediator mediator, CancellationToken ct) =>
+        app.MapPut("users/{id:guid}", async (Guid id, [FromBody] UpdateUserCommand command, IMediator mediator, CancellationToken ct) =>
         {
-            var command = new UpdateUserCommand(id, request.FirstName, request.LastName, request.PhoneNumber, request.Roles);
+            if (id != command.UserId) return Results.BadRequest("Mismatched ID.");
             await mediator.SendCommandAsync(command, ct);
             return Results.NoContent();
         })
@@ -27,4 +27,4 @@ public class UpdateUserEndpoint : ICarterModule
     }
 }
 
-public record UpdateUserRequest(string FirstName, string LastName, string PhoneNumber, List<string>? Roles);
+
