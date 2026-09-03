@@ -6,11 +6,10 @@ public class RemoveRoleCommandHandler(UserManager<User> userManager) : ICommandH
 {
     public async Task Handle(RemoveRoleCommand request, CancellationToken cancellationToken)
     {
-        var user = await userManager.FindByIdAsync(request.UserId) ?? throw new KeyNotFoundException("User not found.");
-        var result = await userManager.RemoveFromRoleAsync(user, request.RoleName);
-        if (!result.Succeeded)
-        {
-            throw new InvalidOperationException(string.Join(", ", result.Errors.Select(e => e.Description)));
-        }
+        _ = await userManager.FindByIdAsync(request.UserId)
+            ?? throw new KeyNotFoundException("User not found.");
+
+        throw new InvalidOperationException(
+            "A user must always have exactly one role. Assign a replacement role instead of removing the current role.");
     }
 }
