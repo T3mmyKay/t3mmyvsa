@@ -43,7 +43,9 @@ public sealed class AuthSessionService(
 
         var now = DateTimeOffset.UtcNow;
         var hash = HashRefreshToken(refreshToken);
-        var current = await db.AuthSessions.SingleOrDefaultAsync(x => x.RefreshTokenHash == hash, cancellationToken)
+        var current = await db.AuthSessions
+            .AsNoTracking()
+            .SingleOrDefaultAsync(x => x.RefreshTokenHash == hash, cancellationToken)
             ?? throw new UnauthorizedAccessException("Invalid refresh token.");
 
         if (current.RevokedAt is not null)
@@ -55,8 +57,11 @@ public sealed class AuthSessionService(
 
         if (current.ExpiresAt <= now)
         {
-            current.RevokedAt = now;
-            await db.SaveChangesAsync(cancellationToken);
+            await db.AuthSessions
+                .Where(x => x.Id == current.Id && x.RevokedAt == null)
+                .ExecuteUpdateAsync(
+                    setters => setters.SetProperty(x => x.RevokedAt, now),
+                    cancellationToken);
             throw new UnauthorizedAccessException("Refresh token has expired.");
         }
 
@@ -71,11 +76,29 @@ public sealed class AuthSessionService(
         var newRefreshToken = GenerateRefreshToken();
         var replacement = CreateSession(user.Id, newRefreshToken, now);
 
-        current.LastUsedAt = now;
-        current.RevokedAt = now;
-        current.ReplacedBySessionId = replacement.Id;
+        // Rotation must be single-use even when two requests race with the same token.
+        // Keep revocation + replacement insertion atomic, and condition the update on the
+        // token still being active. A losing request is treated as refresh-token reuse.
+        await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
+        var rotated = await db.AuthSessions
+            .Where(x => x.Id == current.Id && x.RevokedAt == null && x.ExpiresAt > now)
+            .ExecuteUpdateAsync(
+                setters => setters
+                    .SetProperty(x => x.LastUsedAt, now)
+                    .SetProperty(x => x.RevokedAt, now)
+                    .SetProperty(x => x.ReplacedBySessionId, replacement.Id),
+                cancellationToken);
+
+        if (rotated != 1)
+        {
+            await transaction.RollbackAsync(cancellationToken);
+            await RevokeAllSessionsInternalAsync(user.Id, now, cancellationToken);
+            throw new UnauthorizedAccessException("Refresh token reuse detected; all sessions were revoked.");
+        }
+
         db.AuthSessions.Add(replacement);
         await db.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
 
         var (accessToken, accessExpiresAt) = await tokenService.GenerateAccessTokenAsync(user, replacement.Id);
         return new AuthTokenPair(accessToken, newRefreshToken, accessExpiresAt, replacement.ExpiresAt, replacement.Id);
@@ -103,16 +126,11 @@ public sealed class AuthSessionService(
 
     public async Task RevokeSessionAsync(string userId, Guid sessionId, CancellationToken cancellationToken = default)
     {
-        var session = await db.AuthSessions.SingleOrDefaultAsync(
-            x => x.Id == sessionId && x.UserId == userId,
-            cancellationToken);
-        if (session is null || session.RevokedAt is not null)
-        {
-            return;
-        }
-
-        session.RevokedAt = DateTimeOffset.UtcNow;
-        await db.SaveChangesAsync(cancellationToken);
+        await db.AuthSessions
+            .Where(x => x.Id == sessionId && x.UserId == userId && x.RevokedAt == null)
+            .ExecuteUpdateAsync(
+                setters => setters.SetProperty(x => x.RevokedAt, DateTimeOffset.UtcNow),
+                cancellationToken);
     }
 
     public Task RevokeAllSessionsAsync(string userId, CancellationToken cancellationToken = default) =>
@@ -120,19 +138,11 @@ public sealed class AuthSessionService(
 
     private async Task RevokeAllSessionsInternalAsync(string userId, DateTimeOffset now, CancellationToken cancellationToken)
     {
-        var sessions = await db.AuthSessions
+        await db.AuthSessions
             .Where(x => x.UserId == userId && x.RevokedAt == null)
-            .ToListAsync(cancellationToken);
-
-        foreach (var session in sessions)
-        {
-            session.RevokedAt = now;
-        }
-
-        if (sessions.Count > 0)
-        {
-            await db.SaveChangesAsync(cancellationToken);
-        }
+            .ExecuteUpdateAsync(
+                setters => setters.SetProperty(x => x.RevokedAt, now),
+                cancellationToken);
     }
 
     private AuthSession CreateSession(string userId, string refreshToken, DateTimeOffset now)
