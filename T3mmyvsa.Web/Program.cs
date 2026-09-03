@@ -1,3 +1,4 @@
+using System.Reflection;
 using Scalar.AspNetCore;
 using Serilog;
 using Serilog.Exceptions;
@@ -16,6 +17,11 @@ try
     Log.Information("Starting web application");
 
     var builder = WebApplication.CreateBuilder(args);
+    var isBuildTimeOpenApiGeneration =
+        string.Equals(
+            Assembly.GetEntryAssembly()?.GetName().Name,
+            "GetDocument.Insider",
+            StringComparison.Ordinal);
 
     builder.Host.UseSerilog((context, services, configuration) => configuration
         .ReadFrom.Configuration(context.Configuration)
@@ -56,11 +62,8 @@ try
         options.SerializerOptions.DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull;
     });
 
-
     var app = builder.Build();
 
-    // Configure the HTTP request pipeline.
-    // Configure the HTTP request pipeline.
     app.UseStatusCodePages();
     app.UseExceptionHandler();
 
@@ -78,7 +81,12 @@ try
     app.MapScalarApiReference();
     app.MapGet("/", () => Results.Redirect("/scalar/v1")).ExcludeFromDescription();
 
-    app.UseTickerQ();
+    // Build-time OpenAPI generation invokes the app entry point. Runtime services that
+    // touch infrastructure must not start while the GetDocument host is inspecting endpoints.
+    if (!isBuildTimeOpenApiGeneration)
+    {
+        app.UseTickerQ();
+    }
 
     var versionSet = app.NewApiVersionSet()
         .HasApiVersion(new Asp.Versioning.ApiVersion(1))
@@ -91,8 +99,9 @@ try
         .AddEndpointFilter<ValidationFilter>()
         .MapCarter();
 
-    using (var scope = app.Services.CreateScope())
+    if (!isBuildTimeOpenApiGeneration)
     {
+        using var scope = app.Services.CreateScope();
         await DbSeeder.SeedAsync(scope.ServiceProvider);
     }
 
@@ -100,7 +109,7 @@ try
 }
 catch (Microsoft.Extensions.Hosting.HostAbortedException)
 {
-    // Ignore this exception as it is thrown by EF Core tools when generating migrations
+    // Ignore this exception as it is thrown by EF Core tools when generating migrations.
     Log.Information("Host aborted (likely by EF Core tools).");
 }
 catch (Exception ex)
