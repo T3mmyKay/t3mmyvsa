@@ -75,30 +75,41 @@ public sealed class AuthSessionService(
 
         var newRefreshToken = GenerateRefreshToken();
         var replacement = CreateSession(user.Id, newRefreshToken, now);
+        var rotated = 0;
 
         // Rotation must be single-use even when two requests race with the same token.
-        // Keep revocation + replacement insertion atomic, and condition the update on the
-        // token still being active. A losing request is treated as refresh-token reuse.
-        await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
-        var rotated = await db.AuthSessions
-            .Where(x => x.Id == current.Id && x.RevokedAt == null && x.ExpiresAt > now)
-            .ExecuteUpdateAsync(
-                setters => setters
-                    .SetProperty(x => x.LastUsedAt, now)
-                    .SetProperty(x => x.RevokedAt, now)
-                    .SetProperty(x => x.ReplacedBySessionId, replacement.Id),
-                cancellationToken);
+        // Revocation and replacement insertion are atomic. The conditional update ensures
+        // exactly one contender wins; a loser is treated as refresh-token reuse.
+        await using (var transaction = await db.Database.BeginTransactionAsync(cancellationToken))
+        {
+            rotated = await db.AuthSessions
+                .Where(x => x.Id == current.Id && x.RevokedAt == null && x.ExpiresAt > now)
+                .ExecuteUpdateAsync(
+                    setters => setters
+                        .SetProperty(x => x.LastUsedAt, now)
+                        .SetProperty(x => x.RevokedAt, now)
+                        .SetProperty(x => x.ReplacedBySessionId, replacement.Id),
+                    cancellationToken);
+
+            if (rotated == 1)
+            {
+                db.AuthSessions.Add(replacement);
+                await db.SaveChangesAsync(cancellationToken);
+                await transaction.CommitAsync(cancellationToken);
+            }
+            else
+            {
+                await transaction.RollbackAsync(cancellationToken);
+            }
+        }
 
         if (rotated != 1)
         {
-            await transaction.RollbackAsync(cancellationToken);
+            // The winning transaction has completed before this executes, so any replacement
+            // session it created is visible and is revoked as part of replay containment.
             await RevokeAllSessionsInternalAsync(user.Id, now, cancellationToken);
             throw new UnauthorizedAccessException("Refresh token reuse detected; all sessions were revoked.");
         }
-
-        db.AuthSessions.Add(replacement);
-        await db.SaveChangesAsync(cancellationToken);
-        await transaction.CommitAsync(cancellationToken);
 
         var (accessToken, accessExpiresAt) = await tokenService.GenerateAccessTokenAsync(user, replacement.Id);
         return new AuthTokenPair(accessToken, newRefreshToken, accessExpiresAt, replacement.ExpiresAt, replacement.Id);
