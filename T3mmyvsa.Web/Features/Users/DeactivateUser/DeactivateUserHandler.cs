@@ -13,11 +13,13 @@ public class DeactivateUserHandler(UserManager<User> userManager, IAuthSessionSe
             ?? throw new KeyNotFoundException($"User with ID {command.UserId} not found.");
 
         var roles = await userManager.GetRolesAsync(user);
-        if (roles.Contains(AppRole.Admin.ToString()))
+        if (roles.Contains(AppRole.Admin.ToString(), StringComparer.OrdinalIgnoreCase))
         {
             throw new InvalidOperationException("Admin users cannot be deactivated.");
         }
 
+        // Identity only honors LockoutEnd when lockout is enabled for the account.
+        user.LockoutEnabled = true;
         user.LockoutEnd = DateTimeOffset.MaxValue;
         var result = await userManager.UpdateAsync(user);
         if (!result.Succeeded)
