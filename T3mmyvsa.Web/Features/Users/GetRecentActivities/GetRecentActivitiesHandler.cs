@@ -1,6 +1,5 @@
 using Microsoft.EntityFrameworkCore;
 using T3mmyvsa.Authorization.Enums;
-using T3mmyvsa.Authorization.Handlers;
 using T3mmyvsa.Data;
 using T3mmyvsa.Extensions;
 using T3mmyvsa.Interfaces;
@@ -10,38 +9,36 @@ namespace T3mmyvsa.Features.Users.GetRecentActivities;
 public class GetRecentActivitiesHandler(
     AppDbContext context,
     ICurrentUserService currentUserService,
-    IHttpContextAccessor httpContextAccessor
+    IUserPermissionService userPermissionService
 ) : IQueryHandler<GetRecentActivitiesQuery, List<RecentActivityResponse>>
 {
     public async Task<List<RecentActivityResponse>> Handle(GetRecentActivitiesQuery request, CancellationToken cancellationToken)
     {
-        var targetUserId = request.UserId;
+        var actorUserId = currentUserService.UserId;
+        var targetUserId = string.IsNullOrWhiteSpace(request.UserId) ? actorUserId : request.UserId;
 
-        // If no UserId provided, use current user
-        if (string.IsNullOrEmpty(targetUserId))
-        {
-            targetUserId = currentUserService.UserId;
-        }
-
-        if (string.IsNullOrEmpty(targetUserId))
+        if (string.IsNullOrWhiteSpace(targetUserId))
         {
             return [];
         }
 
-        // Authorization Check
-        // If requesting another user's data, check for ViewActivity permission
-        if (targetUserId != currentUserService.UserId)
+        // Self-access is allowed. Reading another user's activity uses the same server-side
+        // effective-permission authority as endpoint authorization; JWT permission claims are not trusted.
+        if (!string.Equals(targetUserId, actorUserId, StringComparison.Ordinal))
         {
-            var user = httpContextAccessor.HttpContext?.User;
-            var requiredPermission = AppPermission.UsersViewActivity.GetDescription();
+            if (string.IsNullOrWhiteSpace(actorUserId))
+            {
+                return [];
+            }
 
-            if (user == null || !user.HasClaim(c => c.Type == PermissionAuthorizationHandler.PermissionClaimType && c.Value == requiredPermission))
+            var permissions = await userPermissionService.GetPermissionsAsync(actorUserId, cancellationToken);
+            if (!permissions.Contains(AppPermission.UsersViewActivity.GetDescription()))
             {
                 return [];
             }
         }
 
-        var activities = await context.AuditLogs
+        return await context.AuditLogs
             .AsNoTracking()
             .Where(x => x.UserId == targetUserId)
             .OrderByDescending(x => x.Timestamp)
@@ -52,10 +49,7 @@ public class GetRecentActivitiesHandler(
                 x.NewValues,
                 x.IpAddress,
                 x.UserAgent,
-                x.Timestamp
-            ))
+                x.Timestamp))
             .ToListAsync(cancellationToken);
-
-        return activities;
     }
 }
