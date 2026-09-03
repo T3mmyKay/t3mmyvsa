@@ -1,30 +1,29 @@
 using T3mmyvsa.Authorization.Enums;
+using T3mmyvsa.Data;
 
 namespace T3mmyvsa.Features.Roles.DeleteRole;
 
-public class DeleteRoleCommandHandler(RoleManager<IdentityRole> roleManager)
+public class DeleteRoleCommandHandler(RoleManager<IdentityRole> roleManager, AppDbContext db)
     : ICommandHandler<DeleteRoleCommand, DeleteRoleResponse>
 {
-    // Protected roles that cannot be deleted (from AppRole enum)
     private static readonly HashSet<string> ProtectedRoles = Enum.GetNames<AppRole>()
         .Select(name => name.ToUpperInvariant())
-        .ToHashSet();
+        .ToHashSet(StringComparer.Ordinal);
 
     public async Task<DeleteRoleResponse> Handle(DeleteRoleCommand request, CancellationToken cancellationToken)
     {
-        var role = await roleManager.FindByIdAsync(request.RoleId) ?? throw new InvalidOperationException("Role not found.");
+        var role = await roleManager.FindByIdAsync(request.RoleId)
+            ?? throw new InvalidOperationException("Role not found.");
 
-        // Check if this is a protected system role
         if (role.NormalizedName is not null && ProtectedRoles.Contains(role.NormalizedName))
         {
             throw new InvalidOperationException($"Cannot delete protected system role '{role.Name}'.");
         }
 
-        // Remove all claims associated with this role to avoid orphan entities
-        var roleClaims = await roleManager.GetClaimsAsync(role);
-        foreach (var claim in roleClaims)
+        if (await db.UserRoles.AsNoTracking().AnyAsync(x => x.RoleId == role.Id, cancellationToken))
         {
-            await roleManager.RemoveClaimAsync(role, claim);
+            throw new InvalidOperationException(
+                $"Cannot delete role '{role.Name}' while it is assigned to users. Reassign those users first.");
         }
 
         var result = await roleManager.DeleteAsync(role);
