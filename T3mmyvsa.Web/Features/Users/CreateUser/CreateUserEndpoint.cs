@@ -1,7 +1,6 @@
 using T3mmyvsa.Authorization.Enums;
 using T3mmyvsa.Extensions;
 
-
 namespace T3mmyvsa.Features.Users.CreateUser;
 
 public class CreateUserEndpoint : ICarterModule
@@ -17,11 +16,11 @@ public class CreateUserEndpoint : ICarterModule
         .WithName(nameof(CreateUserEndpoint))
         .WithTags("Users")
         .WithSummary("Create a new user")
-        .WithDescription("Creates a new user with the specified roles.")
+        .WithDescription("Creates a user with exactly one application role. Both user creation and role-management permissions are required.")
         .Produces<string>(StatusCodes.Status201Created)
         .ProducesProblem(StatusCodes.Status400BadRequest)
         .ProducesProblem(StatusCodes.Status401Unauthorized)
         .ProducesProblem(StatusCodes.Status403Forbidden)
-        .HasPermissions(AppPermission.UsersCreate);
+        .HasPermissions(AppPermission.UsersCreate, AppPermission.UsersManageRoles);
     }
 }

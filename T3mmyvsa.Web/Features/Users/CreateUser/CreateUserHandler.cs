@@ -1,40 +1,42 @@
 using T3mmyvsa.Entities;
+using T3mmyvsa.Interfaces;
 
 namespace T3mmyvsa.Features.Users.CreateUser;
 
-public class CreateUserHandler(UserManager<User> userManager) : ICommandHandler<CreateUserCommand, string>
+public class CreateUserHandler(UserManager<User> userManager, IUserRoleService userRoleService)
+    : ICommandHandler<CreateUserCommand, string>
 {
     public async Task<string> Handle(CreateUserCommand command, CancellationToken cancellationToken)
     {
+        if (await userManager.FindByEmailAsync(command.Email) is not null)
+        {
+            throw new InvalidOperationException("A user with this email already exists.");
+        }
+
         var user = new User
         {
-            UserName = command.Email,
-            Email = command.Email,
-            FirstName = command.FirstName,
-            LastName = command.LastName,
+            UserName = command.Email.Trim(),
+            Email = command.Email.Trim(),
+            FirstName = command.FirstName.Trim(),
+            LastName = command.LastName.Trim(),
             PhoneNumber = command.PhoneNumber,
-            EmailConfirmed = true // Auto-confirm for admin created users
+            EmailConfirmed = true
         };
 
         var result = await userManager.CreateAsync(user, command.Password);
-
         if (!result.Succeeded)
         {
-            var errors = string.Join(" ", result.Errors.Select(e => e.Description));
-            throw new InvalidOperationException($"User creation failed: {errors}");
+            throw new InvalidOperationException($"User creation failed: {string.Join(" ", result.Errors.Select(x => x.Description))}");
         }
 
-        if (command.Roles.Count != 0)
+        try
         {
-            var roleResult = await userManager.AddToRolesAsync(user, command.Roles);
-            if (!roleResult.Succeeded)
-            {
-                // Rollback user creation if role assignment fails
-                await userManager.DeleteAsync(user);
-
-                var errors = string.Join(" ", roleResult.Errors.Select(e => e.Description));
-                throw new InvalidOperationException($"Role assignment failed: {errors}");
-            }
+            await userRoleService.SetExactRoleAsync(user, command.Role, cancellationToken);
+        }
+        catch
+        {
+            await userManager.DeleteAsync(user);
+            throw;
         }
 
         return user.Id;

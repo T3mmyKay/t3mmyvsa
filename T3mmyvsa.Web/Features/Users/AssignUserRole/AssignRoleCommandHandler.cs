@@ -1,22 +1,16 @@
 using T3mmyvsa.Entities;
+using T3mmyvsa.Interfaces;
 
 namespace T3mmyvsa.Features.Users.AssignUserRole;
 
-public class AssignRoleCommandHandler(UserManager<User> userManager, RoleManager<IdentityRole> roleManager)
+public class AssignRoleCommandHandler(UserManager<User> userManager, IUserRoleService userRoleService)
     : ICommandHandler<AssignRoleCommand>
 {
     public async Task Handle(AssignRoleCommand request, CancellationToken cancellationToken)
     {
-        var user = await userManager.FindByIdAsync(request.UserId) ?? throw new KeyNotFoundException("User not found.");
-        if (!await roleManager.RoleExistsAsync(request.RoleName))
-        {
-            throw new InvalidOperationException("Role does not exist.");
-        }
+        var user = await userManager.FindByIdAsync(request.UserId)
+            ?? throw new KeyNotFoundException("User not found.");
 
-        var result = await userManager.AddToRoleAsync(user, request.RoleName);
-        if (!result.Succeeded)
-        {
-            throw new InvalidOperationException(string.Join(", ", result.Errors.Select(e => e.Description)));
-        }
+        await userRoleService.SetExactRoleAsync(user, request.RoleName, cancellationToken);
     }
 }

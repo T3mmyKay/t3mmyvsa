@@ -11,9 +11,9 @@ public class RefreshTokenEndpoint : ICarterModule
                 var response = await mediator.SendCommandAsync<RefreshTokenCommand, RefreshTokenResponse>(command, ct);
                 return Results.Ok(response);
             }
-            catch (UnauthorizedAccessException ex)
+            catch (UnauthorizedAccessException)
             {
-                return Results.BadRequest(ex.Message);
+                return Results.Unauthorized();
             }
         })
         .HasApiVersion(1)
@@ -21,9 +21,8 @@ public class RefreshTokenEndpoint : ICarterModule
         .WithName(nameof(RefreshTokenEndpoint))
         .WithTags("Auth")
         .WithSummary("Refresh access token")
-        .WithDescription("Issues a new access token and refresh token using a valid refresh token.")
+        .WithDescription("Rotates a valid refresh credential and issues a replacement token pair. The accessToken field is accepted for backwards compatibility but is not trusted for refresh authorization.")
         .Produces<RefreshTokenResponse>(StatusCodes.Status200OK)
-        .ProducesProblem(StatusCodes.Status400BadRequest)
         .ProducesProblem(StatusCodes.Status401Unauthorized)
         .AllowAnonymous();
     }

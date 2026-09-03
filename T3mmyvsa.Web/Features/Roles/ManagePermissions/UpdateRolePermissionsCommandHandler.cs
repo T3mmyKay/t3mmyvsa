@@ -1,5 +1,7 @@
 using System.Security.Claims;
+using T3mmyvsa.Authorization.Enums;
 using T3mmyvsa.Authorization.Handlers;
+using T3mmyvsa.Extensions;
 
 namespace T3mmyvsa.Features.Roles.ManagePermissions;
 
@@ -8,28 +10,46 @@ public class UpdateRolePermissionsCommandHandler(RoleManager<IdentityRole> roleM
 {
     public async Task Handle(UpdateRolePermissionsCommand request, CancellationToken cancellationToken)
     {
-        var role = await roleManager.FindByIdAsync(request.RoleId) ?? throw new KeyNotFoundException("Role not found.");
+        var role = await roleManager.FindByIdAsync(request.RoleId)
+            ?? throw new KeyNotFoundException("Role not found.");
+
+        if (request.Permissions.Count != request.Permissions.Distinct(StringComparer.OrdinalIgnoreCase).Count())
+        {
+            throw new InvalidOperationException("Permission values must be unique.");
+        }
+
+        var knownPermissions = Enum.GetValues<AppPermission>()
+            .Select(x => x.GetDescription())
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var unknown = request.Permissions.Where(x => !knownPermissions.Contains(x)).ToArray();
+        if (unknown.Length > 0)
+        {
+            throw new InvalidOperationException($"Unknown permission(s): {string.Join(", ", unknown)}");
+        }
+
         var currentClaims = await roleManager.GetClaimsAsync(role);
         var currentPermissions = currentClaims
-            .Where(c => c.Type == PermissionAuthorizationHandler.PermissionClaimType)
+            .Where(x => x.Type == PermissionAuthorizationHandler.PermissionClaimType)
             .ToList();
 
-        // Remove permissions that are not in the request
-        foreach (var claim in currentPermissions)
+        foreach (var claim in currentPermissions.Where(x => !request.Permissions.Contains(x.Value, StringComparer.OrdinalIgnoreCase)))
         {
-            if (!request.Permissions.Contains(claim.Value))
+            var remove = await roleManager.RemoveClaimAsync(role, claim);
+            if (!remove.Succeeded)
             {
-                await roleManager.RemoveClaimAsync(role, claim);
+                throw new InvalidOperationException(string.Join(", ", remove.Errors.Select(x => x.Description)));
             }
         }
 
-        // Add new permissions
-        var existingPermissionValues = currentPermissions.Select(c => c.Value).ToHashSet();
-        foreach (var permission in request.Permissions)
+        var existing = currentPermissions.Select(x => x.Value).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        foreach (var permission in request.Permissions.Where(x => !existing.Contains(x)))
         {
-            if (!existingPermissionValues.Contains(permission))
+            var add = await roleManager.AddClaimAsync(
+                role,
+                new Claim(PermissionAuthorizationHandler.PermissionClaimType, permission));
+            if (!add.Succeeded)
             {
-                await roleManager.AddClaimAsync(role, new Claim(PermissionAuthorizationHandler.PermissionClaimType, permission));
+                throw new InvalidOperationException(string.Join(", ", add.Errors.Select(x => x.Description)));
             }
         }
     }

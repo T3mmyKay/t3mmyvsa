@@ -5,30 +5,16 @@ namespace T3mmyvsa.Features.Users.GetCurrentUser;
 
 public class GetCurrentUserQueryHandler(
     UserManager<User> userManager,
-    RoleManager<IdentityRole> roleManager,
-    ICurrentUserService currentUserService
-) : IQueryHandler<GetCurrentUserQuery, CurrentUserResponse>
+    ICurrentUserService currentUserService,
+    IUserPermissionService userPermissionService)
+    : IQueryHandler<GetCurrentUserQuery, CurrentUserResponse>
 {
     public async Task<CurrentUserResponse> Handle(GetCurrentUserQuery query, CancellationToken ct)
     {
         var userId = currentUserService.UserId ?? throw new InvalidOperationException("User is not authenticated.");
         var user = await userManager.FindByIdAsync(userId) ?? throw new KeyNotFoundException("User not found.");
-
         var roles = await userManager.GetRolesAsync(user);
-
-        var permissions = new HashSet<string>();
-        foreach (var roleName in roles)
-        {
-            var role = await roleManager.FindByNameAsync(roleName);
-            if (role != null)
-            {
-                var claims = await roleManager.GetClaimsAsync(role);
-                foreach (var claim in claims.Where(c => c.Type == "Permission"))
-                {
-                    permissions.Add(claim.Value);
-                }
-            }
-        }
+        var permissions = await userPermissionService.GetPermissionsAsync(user.Id, ct);
 
         return new CurrentUserResponse(
             user.Id,
@@ -37,8 +23,7 @@ public class GetCurrentUserQueryHandler(
             user.FirstName,
             user.LastName,
             [.. roles],
-            [.. permissions],
-            user.CreatedAt
-        );
+            [.. permissions.OrderBy(x => x, StringComparer.OrdinalIgnoreCase)],
+            user.CreatedAt);
     }
 }

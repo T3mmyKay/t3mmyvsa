@@ -1,9 +1,9 @@
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
-using System.Security.Cryptography;
 using System.Text;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
+using T3mmyvsa.Authorization;
 using T3mmyvsa.Configuration;
 using T3mmyvsa.Entities;
 using T3mmyvsa.Interfaces;
@@ -14,70 +14,41 @@ public class TokenService(IOptions<JwtSettings> jwtSettings, UserManager<User> u
 {
     private readonly JwtSettings _jwtSettings = jwtSettings.Value;
 
-    public async Task<string> GenerateAccessToken(User user)
+    public async Task<(string Token, DateTimeOffset ExpiresAt)> GenerateAccessTokenAsync(User user, Guid sessionId)
     {
-        var authClaims = new List<Claim>
+        var now = DateTimeOffset.UtcNow;
+        var expiresAt = now.AddMinutes(_jwtSettings.TokenValidityInMinutes);
+        var claims = new List<Claim>
         {
-            new(ClaimTypes.Name, user.UserName!),
+            new(JwtRegisteredClaimNames.Sub, user.Id),
             new(ClaimTypes.NameIdentifier, user.Id),
-            new(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
+            new(ClaimTypes.Name, user.UserName!),
+            new(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
+            new(AuthClaimTypes.SessionId, sessionId.ToString()),
+            new(JwtRegisteredClaimNames.Iat, now.ToUnixTimeSeconds().ToString(), ClaimValueTypes.Integer64)
         };
 
-        if (!string.IsNullOrEmpty(user.Email))
+        if (!string.IsNullOrWhiteSpace(user.Email))
         {
-            authClaims.Add(new Claim(ClaimTypes.Email, user.Email));
+            claims.Add(new Claim(ClaimTypes.Email, user.Email));
         }
 
-        var userRoles = await userManager.GetRolesAsync(user);
-        foreach (var role in userRoles)
+        // Role claims remain useful to clients, but authorization handlers re-resolve roles/permissions
+        // from the server so changes do not wait for the access token to expire.
+        foreach (var role in await userManager.GetRolesAsync(user))
         {
-            authClaims.Add(new Claim(ClaimTypes.Role, role));
+            claims.Add(new Claim(ClaimTypes.Role, role));
         }
 
-        // Permission claims are not added to the token to keep it small.
-        // They are checked dynamically in the PermissionAuthorizationHandler.
-
-        var authSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_jwtSettings.Secret));
-
+        var signingKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_jwtSettings.Secret));
         var token = new JwtSecurityToken(
             issuer: _jwtSettings.ValidIssuer,
             audience: _jwtSettings.ValidAudience,
-            expires: DateTime.Now.AddMinutes(_jwtSettings.TokenValidityInMinutes),
-            claims: authClaims,
-            signingCredentials: new SigningCredentials(authSigningKey, SecurityAlgorithms.HmacSha256)
-        );
+            notBefore: now.UtcDateTime,
+            expires: expiresAt.UtcDateTime,
+            claims: claims,
+            signingCredentials: new SigningCredentials(signingKey, SecurityAlgorithms.HmacSha256));
 
-        return new JwtSecurityTokenHandler().WriteToken(token);
-    }
-
-    public string GenerateRefreshToken()
-    {
-        var randomNumber = new byte[64];
-        using var rng = RandomNumberGenerator.Create();
-        rng.GetBytes(randomNumber);
-        return Convert.ToBase64String(randomNumber);
-    }
-
-    public ClaimsPrincipal GetPrincipalFromExpiredToken(string token)
-    {
-        var tokenValidationParameters = new TokenValidationParameters
-        {
-            ValidateAudience = false,
-            ValidateIssuer = false,
-            ValidateIssuerSigningKey = true,
-            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_jwtSettings.Secret)),
-            ValidateLifetime = false // We want to validate even if expired
-        };
-
-        var tokenHandler = new JwtSecurityTokenHandler();
-        var principal = tokenHandler.ValidateToken(token, tokenValidationParameters, out var securityToken);
-
-        if (securityToken is not JwtSecurityToken jwtSecurityToken ||
-            !jwtSecurityToken.Header.Alg.Equals(SecurityAlgorithms.HmacSha256, StringComparison.InvariantCultureIgnoreCase))
-        {
-            throw new SecurityTokenException("Invalid token");
-        }
-
-        return principal;
+        return (new JwtSecurityTokenHandler().WriteToken(token), expiresAt);
     }
 }

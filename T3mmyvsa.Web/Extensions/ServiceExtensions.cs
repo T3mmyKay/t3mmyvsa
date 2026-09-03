@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using System.Text;
 using Cortex.Mediator.DependencyInjection;
 using FluentValidation;
@@ -5,11 +6,12 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.IdentityModel.Tokens;
 using T3mmyvsa.Attributes;
+using T3mmyvsa.Authorization;
 using T3mmyvsa.Configuration;
 using T3mmyvsa.Data;
 using T3mmyvsa.Entities;
-using TickerQ.DependencyInjection;
 using T3mmyvsa.Interfaces;
+using TickerQ.DependencyInjection;
 using TickerQ.EntityFrameworkCore.DependencyInjection;
 using TickerQ.EntityFrameworkCore.DbContextFactory;
 using TickerQ.Dashboard.DependencyInjection;
@@ -73,9 +75,7 @@ public static class ServiceExtensions
 
         public void ConfigureJwt(IConfiguration configuration)
         {
-            // Register and validate JwtSettings
             services.AddOptionsWithFluentValidation<JwtSettings>("JwtSettings");
-
             var jwtSettings = configuration.GetSection("JwtSettings").Get<JwtSettings>()!;
 
             services.AddAuthentication(opt =>
@@ -94,6 +94,26 @@ public static class ServiceExtensions
                         ValidIssuer = jwtSettings.ValidIssuer,
                         ValidAudience = jwtSettings.ValidAudience,
                         IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSettings.Secret))
+                    };
+
+                    options.Events = new JwtBearerEvents
+                    {
+                        OnTokenValidated = async context =>
+                        {
+                            var userId = context.Principal?.FindFirstValue(ClaimTypes.NameIdentifier);
+                            var sessionValue = context.Principal?.FindFirstValue(AuthClaimTypes.SessionId);
+                            if (string.IsNullOrWhiteSpace(userId) || !Guid.TryParse(sessionValue, out var sessionId))
+                            {
+                                context.Fail("The access token is not bound to a valid session.");
+                                return;
+                            }
+
+                            var sessionService = context.HttpContext.RequestServices.GetRequiredService<IAuthSessionService>();
+                            if (!await sessionService.IsSessionActiveAsync(userId, sessionId, context.HttpContext.RequestAborted))
+                            {
+                                context.Fail("The authentication session has been revoked or expired.");
+                            }
+                        }
                     };
                 });
         }
@@ -145,22 +165,18 @@ public static class ServiceExtensions
         {
             services.Scan(scan => scan
                 .FromAssemblyOf<IEmailService>()
-                // Register Scoped Services
                 .AddClasses(classes => classes.WithAttribute<ScopedServiceAttribute>())
                 .AsImplementedInterfaces()
                 .AsSelf()
                 .WithScopedLifetime()
-                // Register Singleton Services
                 .AddClasses(classes => classes.WithAttribute<SingletonServiceAttribute>())
                 .AsImplementedInterfaces()
                 .AsSelf()
                 .WithSingletonLifetime()
-                // Register Transient Services (Explicit Attribute)
                 .AddClasses(classes => classes.WithAttribute<TransientServiceAttribute>())
                 .AsImplementedInterfaces()
                 .AsSelf()
                 .WithTransientLifetime()
-                // Register Default Services (Ends with "Service") - Exclude decorated services
                 .AddClasses(classes => classes.Where(type =>
                     type.Name.EndsWith("Service") &&
                     !type.IsDefined(typeof(ScopedServiceAttribute), false) &&
@@ -201,7 +217,6 @@ public static class ServiceExtensions
             services.AddSingleton<IAuthorizationPolicyProvider, Authorization.Providers.CustomAuthorizationPolicyProvider>();
             services.AddSingleton<IAuthorizationHandler, Authorization.Handlers.RoleAuthorizationHandler>();
             services.AddSingleton<IAuthorizationHandler, Authorization.Handlers.PermissionAuthorizationHandler>();
-
             services.AddAuthorization();
         }
 
@@ -240,7 +255,6 @@ public static class ServiceExtensions
                         optionsBuilder.UseSqlServer(connectionString, cfg =>
                         {
                             cfg.MigrationsAssembly(typeof(Program).Assembly.GetName().Name!);
-
                             cfg.EnableRetryOnFailure(3, TimeSpan.FromSeconds(5), null);
                         });
                     }, schema: "ticker");
