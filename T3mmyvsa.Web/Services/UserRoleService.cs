@@ -1,5 +1,4 @@
 using T3mmyvsa.Attributes;
-using T3mmyvsa.Authorization.Enums;
 using T3mmyvsa.Entities;
 using T3mmyvsa.Interfaces;
 
@@ -12,20 +11,15 @@ public sealed class UserRoleService(UserManager<User> userManager, RoleManager<I
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(roleName);
 
-        if (!Enum.TryParse<AppRole>(roleName, ignoreCase: true, out var appRole))
+        var role = await roleManager.FindByNameAsync(roleName.Trim());
+        if (role?.Name is null)
         {
-            throw new InvalidOperationException(
-                $"Role '{roleName}' is not a valid application role. Allowed: {string.Join(", ", Enum.GetNames<AppRole>())}.");
+            throw new InvalidOperationException($"Role '{roleName}' does not exist.");
         }
 
-        var canonicalRoleName = appRole.ToString();
-        if (!await roleManager.RoleExistsAsync(canonicalRoleName))
-        {
-            throw new InvalidOperationException($"Role '{canonicalRoleName}' does not exist.");
-        }
-
+        var canonicalRoleName = role.Name;
         var currentRoles = await userManager.GetRolesAsync(user);
-        if (currentRoles.Count == 1 && string.Equals(currentRoles[0], canonicalRoleName, StringComparison.Ordinal))
+        if (currentRoles.Count == 1 && string.Equals(currentRoles[0], canonicalRoleName, StringComparison.OrdinalIgnoreCase))
         {
             return;
         }
