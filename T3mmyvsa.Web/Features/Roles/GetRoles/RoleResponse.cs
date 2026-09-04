@@ -1,3 +1,3 @@
 namespace T3mmyvsa.Features.Roles.GetRoles;
 
-public record RoleResponse(string Id, string Name);
+public record RoleResponse(string Id, string Name, bool IsSystemRole);
