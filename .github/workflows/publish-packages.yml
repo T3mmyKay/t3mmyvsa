@@ -1,8 +1,8 @@
 name: Publish NuGet Packages
 
 on:
-  release:
-    types: [published]
+  push:
+    branches: [main]
   workflow_dispatch:
     inputs:
       publish:
@@ -22,7 +22,7 @@ jobs:
   package:
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      contents: write
       packages: write
 
     env:
@@ -47,14 +47,7 @@ jobs:
             exit 1
           fi
 
-          if [ "${{ github.event_name }}" = "release" ]; then
-            EXPECTED_TAG="v${VERSION}"
-            ACTUAL_TAG="${{ github.event.release.tag_name }}"
-            if [ "$ACTUAL_TAG" != "$EXPECTED_TAG" ]; then
-              echo "Release tag '$ACTUAL_TAG' does not match repository version '$EXPECTED_TAG'." >&2
-              exit 1
-            fi
-          elif [ "${{ inputs.publish }}" = "true" ] && [ "$GITHUB_REF" != "refs/heads/main" ]; then
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "${{ inputs.publish }}" = "true" ] && [ "$GITHUB_REF" != "refs/heads/main" ]; then
             echo "Manual publishing is only allowed from main. Run with publish=false for branch dry-runs." >&2
             exit 1
           fi
@@ -113,7 +106,7 @@ jobs:
           dotnet build -c Release
 
       - name: Validate publishing credentials
-        if: ${{ github.event_name == 'release' || inputs.publish }}
+        if: ${{ github.event_name == 'push' || inputs.publish }}
         shell: bash
         env:
           NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
@@ -125,7 +118,7 @@ jobs:
           fi
 
       - name: Add GitHub Packages source
-        if: ${{ github.event_name == 'release' || inputs.publish }}
+        if: ${{ github.event_name == 'push' || inputs.publish }}
         run: >-
           dotnet nuget add source
           --username "${{ github.actor }}"
@@ -135,21 +128,21 @@ jobs:
           "https://nuget.pkg.github.com/T3mmyKay/index.json"
 
       - name: Push CLI to GitHub Packages
-        if: ${{ github.event_name == 'release' || inputs.publish }}
+        if: ${{ github.event_name == 'push' || inputs.publish }}
         run: >-
           dotnet nuget push "artifacts/packages/T3mmyvsa.CLI.${VERSION}.nupkg"
           --source github
           --skip-duplicate
 
       - name: Push templates to GitHub Packages
-        if: ${{ github.event_name == 'release' || inputs.publish }}
+        if: ${{ github.event_name == 'push' || inputs.publish }}
         run: >-
           dotnet nuget push "artifacts/packages/T3mmy.VSA.Templates.${VERSION}.nupkg"
           --source github
           --skip-duplicate
 
       - name: Push CLI to NuGet.org
-        if: ${{ github.event_name == 'release' || inputs.publish }}
+        if: ${{ github.event_name == 'push' || inputs.publish }}
         run: >-
           dotnet nuget push "artifacts/packages/T3mmyvsa.CLI.${VERSION}.nupkg"
           --api-key "${{ secrets.NUGET_API_KEY }}"
@@ -157,9 +150,22 @@ jobs:
           --skip-duplicate
 
       - name: Push templates to NuGet.org
-        if: ${{ github.event_name == 'release' || inputs.publish }}
+        if: ${{ github.event_name == 'push' || inputs.publish }}
         run: >-
           dotnet nuget push "artifacts/packages/T3mmy.VSA.Templates.${VERSION}.nupkg"
           --api-key "${{ secrets.NUGET_API_KEY }}"
           --source https://api.nuget.org/v3/index.json
           --skip-duplicate
+
+      - name: Create GitHub release
+        if: ${{ github.event_name == 'push' || inputs.publish }}
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          if gh release view "v${VERSION}" >/dev/null 2>&1; then
+            echo "Release v${VERSION} already exists."
+          else
+            gh release create "v${VERSION}" --target "$GITHUB_SHA" --title "v${VERSION}" --generate-notes
+          fi

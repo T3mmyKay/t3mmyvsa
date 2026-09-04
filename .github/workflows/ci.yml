@@ -8,6 +8,7 @@ on:
 
 jobs:
   build:
+    if: ${{ github.event_name != 'push' || github.event.head_commit.message != 'chore(release): publish v2.0.0' }}
     runs-on: ubuntu-latest
 
     steps:
