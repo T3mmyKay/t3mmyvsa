@@ -1,19 +1,51 @@
+using System.Security.Claims;
 using System.Text.Json;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using T3mmyvsa.Attributes;
 using T3mmyvsa.Entities;
 using T3mmyvsa.Entities.Base;
-using Microsoft.AspNetCore.Identity;
 
 namespace T3mmyvsa.Interceptors;
 
-/// <summary>
-/// EF Core interceptor that automatically populates audit fields and generates audit logs.
-/// Captures device info (IP, UserAgent) and detailed property changes (OldValues/NewValues).
-/// </summary>
 [SingletonService]
-public class AuditInterceptor(IHttpContextAccessor httpContextAccessor) : SaveChangesInterceptor
+public sealed class AuditInterceptor(IHttpContextAccessor httpContextAccessor) : SaveChangesInterceptor
 {
+    private static readonly HashSet<string> AuditMetadataProperties = new(StringComparer.OrdinalIgnoreCase)
+    {
+        nameof(IAuditableEntity.CreatedAt),
+        nameof(IAuditableEntity.CreatedBy),
+        nameof(IAuditableEntity.UpdatedAt),
+        nameof(IAuditableEntity.UpdatedBy)
+    };
+
+    private static readonly HashSet<string> AuditableUserProperties = new(StringComparer.OrdinalIgnoreCase)
+    {
+        nameof(User.UserName),
+        nameof(User.Email),
+        nameof(User.PhoneNumber),
+        nameof(User.EmailConfirmed),
+        nameof(User.PhoneNumberConfirmed),
+        nameof(User.TwoFactorEnabled),
+        nameof(User.LockoutEnabled),
+        nameof(User.LockoutEnd),
+        nameof(User.FirstName),
+        nameof(User.LastName),
+        nameof(User.IsActive)
+    };
+
+    private static readonly string[] SensitivePropertyFragments =
+    [
+        "Password",
+        "Secret",
+        "Token",
+        "Credential",
+        "ApiKey",
+        "PrivateKey",
+        "SecurityStamp",
+        "ConcurrencyStamp"
+    ];
+
     public override ValueTask<InterceptionResult<int>> SavingChangesAsync(
         DbContextEventData eventData,
         InterceptionResult<int> result,
@@ -33,73 +65,78 @@ public class AuditInterceptor(IHttpContextAccessor httpContextAccessor) : SaveCh
 
     private void UpdateAuditFieldsAndLog(DbContext? context)
     {
-        if (context is null) return;
+        if (context is null)
+        {
+            return;
+        }
 
         var httpContext = httpContextAccessor.HttpContext;
-        var currentUser = httpContext?.User?.Identity?.Name ?? "System";
-        var ipAddress = httpContext?.Connection?.RemoteIpAddress?.ToString();
-        var userAgent = httpContext?.Request?.Headers["User-Agent"].ToString();
+        var actorUserId = httpContext?.User.FindFirstValue(ClaimTypes.NameIdentifier);
+        var auditActor = actorUserId ?? "System";
+        var ipAddress = httpContext?.Connection.RemoteIpAddress?.ToString();
+        var userAgent = httpContext?.Request.Headers.UserAgent.ToString();
         var now = DateTimeOffset.UtcNow;
 
-        var auditEntries = new List<AuditLog>();
-
-        // 1. Handle AuditableEntity fields (CreatedAt, UpdatedAt, etc.)
         foreach (var entry in context.ChangeTracker.Entries<IAuditableEntity>())
         {
             if (entry.State == EntityState.Added)
             {
                 entry.Entity.CreatedAt = now;
-                entry.Entity.CreatedBy = currentUser;
+                entry.Entity.CreatedBy = auditActor;
             }
             else if (entry.State == EntityState.Modified)
             {
                 entry.Entity.UpdatedAt = now;
-                entry.Entity.UpdatedBy = currentUser;
+                entry.Entity.UpdatedBy = auditActor;
             }
         }
 
-        // 2. Generate Audit Logs for detailed tracking
-        // We now iterate over all entries and filter for BaseEntity or User (IdentityUser)
+        var auditEntries = new List<AuditLog>();
+
         foreach (var entry in context.ChangeTracker.Entries())
         {
-            // Skip AuditLog entity itself to prevent infinite recursion
-            if (entry.Entity is AuditLog || entry.State == EntityState.Detached || entry.State == EntityState.Unchanged)
+            if (entry.Entity is AuditLog || entry.State is EntityState.Detached or EntityState.Unchanged)
+            {
                 continue;
+            }
 
-            // Filter for supported entities: BaseEntity (Guid Id) or User (string Id)
-            if (entry.Entity is not BaseEntity && entry.Entity is not User)
+            if (entry.Entity is not BaseEntity
+                && entry.Entity is not User
+                && entry.Entity is not IdentityRole
+                && entry.Entity is not IdentityRoleClaim<string>)
+            {
                 continue;
+            }
 
             var primaryKey = entry.Entity switch
             {
                 BaseEntity baseEntity => baseEntity.Id.ToString(),
-                IdentityUser identityUser => identityUser.Id,
+                User user => user.Id,
+                IdentityRole role => role.Id,
+                IdentityRoleClaim<string> roleClaim => $"{roleClaim.RoleId}:{roleClaim.ClaimType}:{roleClaim.ClaimValue}",
                 _ => null
             };
 
-            if (primaryKey is null) continue;
-
-            var auditEntry = new AuditLog
+            if (string.IsNullOrWhiteSpace(primaryKey))
             {
-                UserId = currentUser,
-                Type = entry.State.ToString(),
-                TableName = entry.Metadata.GetTableName() ?? entry.Entity.GetType().Name,
-                PrimaryKey = primaryKey,
-                Timestamp = now,
-                IpAddress = ipAddress,
-                UserAgent = userAgent
-            };
+                continue;
+            }
 
             var oldValues = new Dictionary<string, object?>();
             var newValues = new Dictionary<string, object?>();
 
             foreach (var property in entry.Properties)
             {
-                string propertyName = property.Metadata.Name;
-                if (property.IsTemporary) continue;
+                if (property.IsTemporary || property.Metadata.IsPrimaryKey())
+                {
+                    continue;
+                }
 
-                // Don't audit the ID as it's the key
-                if (property.Metadata.IsPrimaryKey()) continue;
+                var propertyName = property.Metadata.Name;
+                if (!ShouldAuditProperty(entry.Entity, propertyName, property.Metadata.PropertyInfo))
+                {
+                    continue;
+                }
 
                 switch (entry.State)
                 {
@@ -109,30 +146,70 @@ public class AuditInterceptor(IHttpContextAccessor httpContextAccessor) : SaveCh
                     case EntityState.Deleted:
                         oldValues[propertyName] = property.OriginalValue;
                         break;
-                    case EntityState.Modified:
-                        if (property.IsModified)
-                        {
-                            oldValues[propertyName] = property.OriginalValue;
-                            newValues[propertyName] = property.CurrentValue;
-                        }
+                    case EntityState.Modified when property.IsModified:
+                        oldValues[propertyName] = property.OriginalValue;
+                        newValues[propertyName] = property.CurrentValue;
                         break;
                 }
             }
 
-            // Serialize dictionaries to JSON
-            if (oldValues.Count > 0)
-                auditEntry.OldValues = JsonSerializer.Serialize(oldValues);
+            if (entry.State == EntityState.Modified && oldValues.Count == 0 && newValues.Count == 0)
+            {
+                continue;
+            }
 
-            if (newValues.Count > 0)
-                auditEntry.NewValues = JsonSerializer.Serialize(newValues);
-
-            auditEntries.Add(auditEntry);
+            auditEntries.Add(new AuditLog
+            {
+                UserId = actorUserId,
+                Type = entry.State switch
+                {
+                    EntityState.Added => "Created",
+                    EntityState.Modified => "Updated",
+                    EntityState.Deleted => "Deleted",
+                    _ => entry.State.ToString()
+                },
+                TableName = entry.Metadata.GetTableName() ?? entry.Entity.GetType().Name,
+                PrimaryKey = primaryKey,
+                Timestamp = now,
+                IpAddress = ipAddress,
+                UserAgent = userAgent,
+                OldValues = oldValues.Count == 0 ? null : JsonSerializer.Serialize(oldValues),
+                NewValues = newValues.Count == 0 ? null : JsonSerializer.Serialize(newValues)
+            });
         }
 
-        // Add generated audit logs to context
         if (auditEntries.Count > 0)
         {
             context.Set<AuditLog>().AddRange(auditEntries);
         }
+    }
+
+    private static bool ShouldAuditProperty(object entity, string propertyName, System.Reflection.PropertyInfo? propertyInfo)
+    {
+        if (AuditMetadataProperties.Contains(propertyName))
+        {
+            return false;
+        }
+
+        if (propertyInfo?.IsDefined(typeof(AuditIgnoreAttribute), inherit: true) == true)
+        {
+            return false;
+        }
+
+        if (SensitivePropertyFragments.Any(fragment => propertyName.Contains(fragment, StringComparison.OrdinalIgnoreCase)))
+        {
+            return false;
+        }
+
+        return entity switch
+        {
+            User => AuditableUserProperties.Contains(propertyName),
+            IdentityRole => propertyName is nameof(IdentityRole.Name) or nameof(IdentityRole.NormalizedName),
+            IdentityRoleClaim<string> => propertyName is nameof(IdentityRoleClaim<string>.RoleId)
+                or nameof(IdentityRoleClaim<string>.ClaimType)
+                or nameof(IdentityRoleClaim<string>.ClaimValue),
+            BaseEntity => true,
+            _ => false
+        };
     }
 }

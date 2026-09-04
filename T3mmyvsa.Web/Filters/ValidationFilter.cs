@@ -2,42 +2,35 @@ using FluentValidation;
 
 namespace T3mmyvsa.Filters;
 
-public class ValidationFilter : IEndpointFilter
+public sealed class ValidationFilter : IEndpointFilter
 {
     public async ValueTask<object?> InvokeAsync(EndpointFilterInvocationContext context, EndpointFilterDelegate next)
     {
         foreach (var argument in context.Arguments)
         {
-            if (argument is null) continue;
-
-            // 1. FluentValidation
-            var validatorType = typeof(IValidator<>).MakeGenericType(argument.GetType());
-            if (context.HttpContext.RequestServices.GetService(validatorType) is IValidator validator)
+            if (argument is null)
             {
-                var validationContext = new ValidationContext<object>(argument);
-                var validationResult = await validator.ValidateAsync(validationContext);
-
-                if (!validationResult.IsValid)
-                {
-                    return Results.ValidationProblem(validationResult.ToDictionary());
-                }
+                continue;
             }
 
-            // 2. DataAnnotations (Fallback)
-            var validationContextData = new System.ComponentModel.DataAnnotations.ValidationContext(argument);
-            var validationResultsData = new List<System.ComponentModel.DataAnnotations.ValidationResult>();
-
-            if (!Validator.TryValidateObject(argument, validationContextData, validationResultsData, true))
+            var validatorType = typeof(IValidator<>).MakeGenericType(argument.GetType());
+            if (context.HttpContext.RequestServices.GetService(validatorType) is not IValidator validator)
             {
-                var errors = validationResultsData
-                    .Where(r => r.ErrorMessage != null)
-                    .GroupBy(
-                        r => r.MemberNames.FirstOrDefault() ?? string.Empty,
-                        r => r.ErrorMessage!
-                    )
-                    .ToDictionary(g => g.Key, g => g.ToArray());
+                continue;
+            }
 
-                return Results.ValidationProblem(errors);
+            var validationContext = new ValidationContext<object>(argument);
+            var validationResult = await validator.ValidateAsync(validationContext, context.HttpContext.RequestAborted);
+
+            if (!validationResult.IsValid)
+            {
+                var errors = validationResult.Errors
+                    .GroupBy(error => error.PropertyName)
+                    .ToDictionary(
+                        group => group.Key,
+                        group => group.Select(error => error.ErrorMessage).Distinct().ToArray());
+
+                return Results.ValidationProblem(errors, statusCode: StatusCodes.Status400BadRequest);
             }
         }
 

@@ -1,17 +1,19 @@
-using System.Security.Claims;
 using T3mmyvsa.Authorization.Enums;
 using T3mmyvsa.Authorization.Handlers;
+using T3mmyvsa.Data;
 using T3mmyvsa.Extensions;
 
 namespace T3mmyvsa.Features.Roles.ManagePermissions;
 
-public class UpdateRolePermissionsCommandHandler(RoleManager<IdentityRole> roleManager)
+public class UpdateRolePermissionsCommandHandler(AppDbContext db)
     : ICommandHandler<UpdateRolePermissionsCommand>
 {
     public async Task Handle(UpdateRolePermissionsCommand request, CancellationToken cancellationToken)
     {
-        var role = await roleManager.FindByIdAsync(request.RoleId)
-            ?? throw new KeyNotFoundException("Role not found.");
+        if (request.Permissions is null)
+        {
+            throw new InvalidOperationException("Permissions are required.");
+        }
 
         if (request.Permissions.Count != request.Permissions.Distinct(StringComparer.OrdinalIgnoreCase).Count())
         {
@@ -19,38 +21,44 @@ public class UpdateRolePermissionsCommandHandler(RoleManager<IdentityRole> roleM
         }
 
         var knownPermissions = Enum.GetValues<AppPermission>()
-            .Select(x => x.GetDescription())
+            .Select(permission => permission.GetDescription())
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
-        var unknown = request.Permissions.Where(x => !knownPermissions.Contains(x)).ToArray();
+
+        var unknown = request.Permissions.Where(permission => !knownPermissions.Contains(permission)).ToArray();
         if (unknown.Length > 0)
         {
             throw new InvalidOperationException($"Unknown permission(s): {string.Join(", ", unknown)}");
         }
 
-        var currentClaims = await roleManager.GetClaimsAsync(role);
-        var currentPermissions = currentClaims
-            .Where(x => x.Type == PermissionAuthorizationHandler.PermissionClaimType)
-            .ToList();
+        var role = await db.Roles.SingleOrDefaultAsync(x => x.Id == request.RoleId, cancellationToken)
+            ?? throw new KeyNotFoundException("Role not found.");
 
-        foreach (var claim in currentPermissions.Where(x => !request.Permissions.Contains(x.Value, StringComparer.OrdinalIgnoreCase)))
+        const string claimType = PermissionAuthorizationHandler.PermissionClaimType;
+        var existingClaims = await db.RoleClaims
+            .Where(x => x.RoleId == role.Id && x.ClaimType == claimType)
+            .ToListAsync(cancellationToken);
+
+        var desired = request.Permissions.ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var existingValues = existingClaims
+            .Where(x => x.ClaimValue is not null)
+            .Select(x => x.ClaimValue!)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        db.RoleClaims.RemoveRange(existingClaims.Where(x => x.ClaimValue is null || !desired.Contains(x.ClaimValue)));
+
+        foreach (var permission in desired.Where(permission => !existingValues.Contains(permission)))
         {
-            var remove = await roleManager.RemoveClaimAsync(role, claim);
-            if (!remove.Succeeded)
+            db.RoleClaims.Add(new IdentityRoleClaim<string>
             {
-                throw new InvalidOperationException(string.Join(", ", remove.Errors.Select(x => x.Description)));
-            }
+                RoleId = role.Id,
+                ClaimType = claimType,
+                ClaimValue = permission
+            });
         }
 
-        var existing = currentPermissions.Select(x => x.Value).ToHashSet(StringComparer.OrdinalIgnoreCase);
-        foreach (var permission in request.Permissions.Where(x => !existing.Contains(x)))
-        {
-            var add = await roleManager.AddClaimAsync(
-                role,
-                new Claim(PermissionAuthorizationHandler.PermissionClaimType, permission));
-            if (!add.Succeeded)
-            {
-                throw new InvalidOperationException(string.Join(", ", add.Errors.Select(x => x.Description)));
-            }
-        }
+        role.ConcurrencyStamp = Guid.NewGuid().ToString();
+
+        // A single SaveChanges call is transactional, so the permission set is replaced atomically.
+        await db.SaveChangesAsync(cancellationToken);
     }
 }

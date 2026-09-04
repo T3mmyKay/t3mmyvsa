@@ -11,7 +11,7 @@ public class GetCurrentUserQueryHandler(
 {
     public async Task<CurrentUserResponse> Handle(GetCurrentUserQuery query, CancellationToken ct)
     {
-        var userId = currentUserService.UserId ?? throw new InvalidOperationException("User is not authenticated.");
+        var userId = currentUserService.UserId ?? throw new UnauthorizedAccessException("User is not authenticated.");
         var user = await userManager.FindByIdAsync(userId) ?? throw new KeyNotFoundException("User not found.");
         var roles = (await userManager.GetRolesAsync(user))
             .OrderBy(x => x, StringComparer.OrdinalIgnoreCase)
