@@ -8,19 +8,22 @@ public class CreateUserHandler(UserManager<User> userManager, IUserRoleService u
 {
     public async Task<string> Handle(CreateUserCommand command, CancellationToken cancellationToken)
     {
-        if (await userManager.FindByEmailAsync(command.Email) is not null)
+        var email = command.Email.Trim();
+        if (await userManager.FindByEmailAsync(email) is not null)
         {
             throw new InvalidOperationException("A user with this email already exists.");
         }
 
         var user = new User
         {
-            UserName = command.Email.Trim(),
-            Email = command.Email.Trim(),
+            UserName = email,
+            Email = email,
             FirstName = command.FirstName.Trim(),
             LastName = command.LastName.Trim(),
-            PhoneNumber = command.PhoneNumber,
-            EmailConfirmed = true
+            PhoneNumber = command.PhoneNumber.Trim(),
+            EmailConfirmed = true,
+            IsActive = true,
+            LockoutEnabled = true
         };
 
         var result = await userManager.CreateAsync(user, command.Password);
