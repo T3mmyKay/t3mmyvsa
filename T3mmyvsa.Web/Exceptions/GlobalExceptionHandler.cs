@@ -1,4 +1,5 @@
 using FluentValidation;
+using FluentValidationException = FluentValidation.ValidationException;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -27,7 +28,7 @@ public sealed class GlobalExceptionHandler(
             DbUpdateConcurrencyException => (StatusCodes.Status409Conflict, "Conflict"),
             KeyNotFoundException => (StatusCodes.Status404NotFound, "Not Found"),
             UnauthorizedAccessException => (StatusCodes.Status401Unauthorized, "Unauthorized"),
-            ValidationException => (StatusCodes.Status400BadRequest, "Validation Failed"),
+            FluentValidationException => (StatusCodes.Status400BadRequest, "Validation Failed"),
             BadHttpRequestException => (StatusCodes.Status400BadRequest, "Invalid Request"),
             ArgumentException => (StatusCodes.Status400BadRequest, "Invalid Request"),
             InvalidOperationException => (StatusCodes.Status400BadRequest, "Invalid Operation"),
@@ -59,7 +60,7 @@ public sealed class GlobalExceptionHandler(
                 : exception.Message
         };
 
-        if (exception is ValidationException validationException)
+        if (exception is FluentValidationException validationException)
         {
             problem.Extensions["errors"] = validationException.Errors
                 .GroupBy(error => error.PropertyName)
