@@ -1,25 +1,29 @@
+using T3mmyvsa.Authorization.Enums;
 using T3mmyvsa.Entities;
+using T3mmyvsa.Interfaces;
 
 namespace T3mmyvsa.Features.Auth.Register;
 
-public class RegisterCommandHandler(UserManager<User> userManager, RoleManager<IdentityRole> roleManager)
+public class RegisterCommandHandler(UserManager<User> userManager, IUserRoleService userRoleService)
     : ICommandHandler<RegisterCommand>
 {
     public async Task Handle(RegisterCommand request, CancellationToken cancellationToken)
     {
-        var userExists = await userManager.FindByEmailAsync(request.Email);
-        if (userExists != null)
+        var email = request.Email.Trim();
+        if (await userManager.FindByEmailAsync(email) is not null)
         {
             throw new InvalidOperationException("User already exists!");
         }
 
         var user = new User
         {
-            Email = request.Email,
+            Email = email,
             SecurityStamp = Guid.NewGuid().ToString(),
-            UserName = request.Email,
-            FirstName = request.FirstName,
-            LastName = request.LastName
+            UserName = email,
+            FirstName = request.FirstName.Trim(),
+            LastName = request.LastName.Trim(),
+            IsActive = true,
+            LockoutEnabled = true
         };
 
         var result = await userManager.CreateAsync(user, request.Password);
@@ -28,11 +32,14 @@ public class RegisterCommandHandler(UserManager<User> userManager, RoleManager<I
             throw new InvalidOperationException(string.Join(", ", result.Errors.Select(e => e.Description)));
         }
 
-        if (!await roleManager.RoleExistsAsync("User"))
+        try
         {
-            await roleManager.CreateAsync(new IdentityRole("User"));
+            await userRoleService.SetExactRoleAsync(user, AppRole.User.ToString(), cancellationToken);
         }
-
-        await userManager.AddToRoleAsync(user, "User");
+        catch
+        {
+            await userManager.DeleteAsync(user);
+            throw;
+        }
     }
 }
