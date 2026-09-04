@@ -3,7 +3,7 @@ namespace T3mmyvsa.Models.Shared;
 public class PagedList<T>(List<T> items, int count, int pageNumber, int pageSize) : List<T>(items)
 {
     public int CurrentPage { get; } = pageNumber;
-    public int TotalPages { get; } = (int)Math.Ceiling(count / (double)pageSize);
+    public int TotalPages { get; } = Math.Max(1, (int)Math.Ceiling(count / (double)pageSize));
     public int PageSize { get; } = pageSize;
     public int TotalCount { get; } = count;
 
