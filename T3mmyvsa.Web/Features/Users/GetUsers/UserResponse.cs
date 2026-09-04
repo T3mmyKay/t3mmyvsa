@@ -6,6 +6,11 @@ public record UserResponse(
     string? Email,
     string? FirstName,
     string? LastName,
+    string? PhoneNumber,
+    string? Role,
+    bool IsActive,
+    bool EmailConfirmed,
+    DateTimeOffset CreatedAt,
     List<string> Roles,
     List<string> Permissions
 );
