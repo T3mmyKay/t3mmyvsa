@@ -68,6 +68,14 @@ jobs:
       - name: Build solution
         run: dotnet build T3mmyvsa.slnx -c Release --no-restore -p:ContinuousIntegrationBuild=true
 
+      - name: Repository unit tests
+        working-directory: T3mmyvsa.Web
+        run: dotnet test Tests/T3mmyvsa.UnitTests/T3mmyvsa.UnitTests.csproj -c Release --no-build --no-restore
+
+      - name: Repository architecture tests
+        working-directory: T3mmyvsa.Web
+        run: dotnet test Tests/T3mmyvsa.ArchitectureTests/T3mmyvsa.ArchitectureTests.csproj -c Release --no-build --no-restore
+
       - name: Pack CLI
         run: >-
           dotnet pack T3mmyvsa.CLI/T3mmyvsa.CLI.csproj
@@ -120,6 +128,10 @@ jobs:
           "$TOOL_DIR/t3mmyvsa" make:entity SmokeProduct
           "$TOOL_DIR/t3mmyvsa" make:feature SmokeProduct
           dotnet build -c Release
+
+          dotnet test Tests/*UnitTests/*.csproj -c Release --no-build --no-restore
+          dotnet test Tests/*ArchitectureTests/*.csproj -c Release --no-build --no-restore
+          dotnet test Tests/*IntegrationTests/*.csproj -c Release --no-build --no-restore
 
           cp .env.example .env
           bash docker/create-migration.sh PackageSmokeInitial
