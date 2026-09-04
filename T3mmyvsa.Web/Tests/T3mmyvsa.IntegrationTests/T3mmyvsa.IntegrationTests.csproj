@@ -9,6 +9,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Using Include="Xunit" />
     <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" />
     <PackageReference Include="Microsoft.Testing.Extensions.CodeCoverage" />
     <PackageReference Include="Newtonsoft.Json" />

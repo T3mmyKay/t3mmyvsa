@@ -29,8 +29,8 @@ public sealed class FeatureArchitectureTests
         var result = Types.InAssembly(ApplicationAssembly)
             .That()
             .ImplementInterface(typeof(ICarterModule))
-            .ShouldNot()
-            .HaveDependencyOn("Microsoft.EntityFrameworkCore")
+            .Should()
+            .NotHaveDependencyOn("Microsoft.EntityFrameworkCore")
             .GetResult();
 
         result.IsSuccessful.ShouldBeTrue(
