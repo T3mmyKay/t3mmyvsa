@@ -9,14 +9,21 @@ public class UpdateUserHandler(UserManager<User> userManager) : ICommandHandler<
         var user = await userManager.FindByIdAsync(command.UserId.ToString())
             ?? throw new KeyNotFoundException($"User with ID {command.UserId} not found.");
 
-        user.FirstName = command.FirstName;
-        user.LastName = command.LastName;
-        user.PhoneNumber = command.PhoneNumber;
+        user.FirstName = command.FirstName.Trim();
+        user.LastName = command.LastName.Trim();
+
+        var phoneResult = await userManager.SetPhoneNumberAsync(user, command.PhoneNumber.Trim());
+        if (!phoneResult.Succeeded)
+        {
+            throw new InvalidOperationException(
+                $"User update failed: {string.Join(", ", phoneResult.Errors.Select(x => x.Description))}");
+        }
 
         var result = await userManager.UpdateAsync(user);
         if (!result.Succeeded)
         {
-            throw new InvalidOperationException($"User update failed: {string.Join(", ", result.Errors.Select(x => x.Description))}");
+            throw new InvalidOperationException(
+                $"User update failed: {string.Join(", ", result.Errors.Select(x => x.Description))}");
         }
     }
 }
