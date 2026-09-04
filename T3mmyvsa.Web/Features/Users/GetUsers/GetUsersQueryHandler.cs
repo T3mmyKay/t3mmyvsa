@@ -49,54 +49,54 @@ public class GetUsersQueryHandler(
         var pagedUsers = await PagedList<User>.CreateAsync(queryable, page, pageSize, cancellationToken);
         var userIds = pagedUsers.Select(x => x.Id).ToList();
 
-        var roleRows = userIds.Count == 0
-            ? []
-            : await db.UserRoles
-                .AsNoTracking()
-                .Where(x => userIds.Contains(x.UserId))
-                .Join(
-                    db.Roles.AsNoTracking(),
-                    userRole => userRole.RoleId,
-                    role => role.Id,
-                    (userRole, role) => new { userRole.UserId, role.Name })
-                .Where(x => x.Name != null)
-                .ToListAsync(cancellationToken);
+        var roleRows = await db.UserRoles
+            .AsNoTracking()
+            .Where(x => userIds.Contains(x.UserId))
+            .Join(
+                db.Roles.AsNoTracking(),
+                userRole => userRole.RoleId,
+                role => role.Id,
+                (userRole, role) => new { userRole.UserId, role.Name })
+            .Where(x => x.Name != null)
+            .ToListAsync(cancellationToken);
 
         var roleMap = roleRows
             .GroupBy(x => x.UserId, StringComparer.Ordinal)
             .ToDictionary(
                 group => group.Key,
-                group => group.Select(x => x.Name!).Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(x => x, StringComparer.OrdinalIgnoreCase).ToList(),
+                group => group.Select(x => x.Name!)
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .OrderBy(x => x, StringComparer.OrdinalIgnoreCase)
+                    .ToList(),
                 StringComparer.Ordinal);
 
         const string permissionClaimType = PermissionAuthorizationHandler.PermissionClaimType;
-        var rolePermissionRows = userIds.Count == 0
-            ? []
-            : await db.UserRoles
-                .AsNoTracking()
-                .Where(x => userIds.Contains(x.UserId))
-                .Join(
-                    db.RoleClaims.AsNoTracking().Where(x => x.ClaimType == permissionClaimType),
-                    userRole => userRole.RoleId,
-                    roleClaim => roleClaim.RoleId,
-                    (userRole, roleClaim) => new { userRole.UserId, roleClaim.ClaimValue })
-                .Where(x => x.ClaimValue != null)
-                .ToListAsync(cancellationToken);
+        var rolePermissionRows = await db.UserRoles
+            .AsNoTracking()
+            .Where(x => userIds.Contains(x.UserId))
+            .Join(
+                db.RoleClaims.AsNoTracking().Where(x => x.ClaimType == permissionClaimType),
+                userRole => userRole.RoleId,
+                roleClaim => roleClaim.RoleId,
+                (userRole, roleClaim) => new { userRole.UserId, roleClaim.ClaimValue })
+            .Where(x => x.ClaimValue != null)
+            .ToListAsync(cancellationToken);
 
-        var directPermissionRows = userIds.Count == 0
-            ? []
-            : await db.UserClaims
-                .AsNoTracking()
-                .Where(x => userIds.Contains(x.UserId) && x.ClaimType == permissionClaimType && x.ClaimValue != null)
-                .Select(x => new { x.UserId, x.ClaimValue })
-                .ToListAsync(cancellationToken);
+        var directPermissionRows = await db.UserClaims
+            .AsNoTracking()
+            .Where(x => userIds.Contains(x.UserId) && x.ClaimType == permissionClaimType && x.ClaimValue != null)
+            .Select(x => new { x.UserId, x.ClaimValue })
+            .ToListAsync(cancellationToken);
 
         var permissionMap = rolePermissionRows
             .Concat(directPermissionRows)
             .GroupBy(x => x.UserId, StringComparer.Ordinal)
             .ToDictionary(
                 group => group.Key,
-                group => group.Select(x => x.ClaimValue!).Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(x => x, StringComparer.OrdinalIgnoreCase).ToList(),
+                group => group.Select(x => x.ClaimValue!)
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .OrderBy(x => x, StringComparer.OrdinalIgnoreCase)
+                    .ToList(),
                 StringComparer.Ordinal);
 
         var userResponses = pagedUsers.Select(user =>
@@ -140,7 +140,7 @@ public class GetUsersQueryHandler(
         var links = new PaginationLinks
         {
             First = BuildLink(1),
-            Last = BuildLink(Math.Max(pagedUsers.TotalPages, 1)),
+            Last = BuildLink(pagedUsers.TotalPages),
             Prev = pagedUsers.HasPrevious ? BuildLink(pagedUsers.CurrentPage - 1) : null,
             Next = pagedUsers.HasNext ? BuildLink(pagedUsers.CurrentPage + 1) : null
         };
