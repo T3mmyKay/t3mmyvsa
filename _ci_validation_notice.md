@@ -1,0 +1,1 @@
+Temporary validation marker. This file is not part of the product and will be removed after the one-off full-stack CI check.
