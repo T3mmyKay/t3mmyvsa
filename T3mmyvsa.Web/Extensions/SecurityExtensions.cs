@@ -15,13 +15,18 @@ public static class SecurityExtensions
 
     public static void ConfigureBootstrapAdmin(this IServiceCollection services)
     {
-        services.AddOptionsWithFluentValidation<BootstrapAdminSettings>("BootstrapAdmin");
+        services.AddOptionsWithFluentValidation<BootstrapAdminSettings>(
+            "BootstrapAdmin");
     }
 
-    public static void ConfigureCors(this IServiceCollection services, IConfiguration configuration)
+    public static void ConfigureCors(
+        this IServiceCollection services,
+        IConfiguration configuration)
     {
         services.AddOptionsWithFluentValidation<CorsSettings>("Cors");
-        var settings = configuration.GetSection("Cors").Get<CorsSettings>() ?? new CorsSettings();
+        var settings =
+            configuration.GetSection("Cors").Get<CorsSettings>()
+            ?? new CorsSettings();
 
         services.AddCors(options =>
         {
@@ -34,7 +39,8 @@ public static class SecurityExtensions
 
                 policy.WithMethods(settings.AllowedMethods)
                     .WithHeaders(settings.AllowedHeaders)
-                    .SetPreflightMaxAge(TimeSpan.FromSeconds(settings.PreflightMaxAgeSeconds));
+                    .SetPreflightMaxAge(
+                        TimeSpan.FromSeconds(settings.PreflightMaxAgeSeconds));
 
                 if (settings.AllowCredentials)
                 {
@@ -44,14 +50,20 @@ public static class SecurityExtensions
         });
     }
 
-    public static void ConfigureForwardedHeaders(this IServiceCollection services, IConfiguration configuration)
+    public static void ConfigureForwardedHeaders(
+        this IServiceCollection services,
+        IConfiguration configuration)
     {
         services.AddOptionsWithFluentValidation<ProxySettings>("Proxy");
-        var settings = configuration.GetSection("Proxy").Get<ProxySettings>() ?? new ProxySettings();
+        var settings =
+            configuration.GetSection("Proxy").Get<ProxySettings>()
+            ?? new ProxySettings();
 
         services.Configure<ForwardedHeadersOptions>(options =>
         {
-            options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+            options.ForwardedHeaders =
+                ForwardedHeaders.XForwardedFor |
+                ForwardedHeaders.XForwardedProto;
             options.ForwardLimit = settings.ForwardLimit;
             options.KnownProxies.Clear();
             options.KnownIPNetworks.Clear();
@@ -66,47 +78,70 @@ public static class SecurityExtensions
         });
     }
 
-    public static void ConfigureRateLimiting(this IServiceCollection services, IConfiguration configuration)
+    public static void ConfigureRateLimiting(
+        this IServiceCollection services,
+        IConfiguration configuration)
     {
-        services.AddOptionsWithFluentValidation<RateLimitSettings>("RateLimiting");
-        var settings = configuration.GetSection("RateLimiting").Get<RateLimitSettings>() ?? new RateLimitSettings();
+        services.AddOptionsWithFluentValidation<RateLimitSettings>(
+            "RateLimiting");
+
+        var settings =
+            configuration.GetSection("RateLimiting").Get<RateLimitSettings>()
+            ?? new RateLimitSettings();
 
         services.AddRateLimiter(options =>
         {
             options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
             options.OnRejected = async (context, cancellationToken) =>
             {
-                if (context.Lease.TryGetMetadata(MetadataName.RetryAfter, out var retryAfter))
+                if (context.Lease.TryGetMetadata(
+                        MetadataName.RetryAfter,
+                        out var retryAfter))
                 {
                     context.HttpContext.Response.Headers["Retry-After"] =
-                        Math.Ceiling(retryAfter.TotalSeconds).ToString(CultureInfo.InvariantCulture);
+                        Math.Ceiling(retryAfter.TotalSeconds)
+                            .ToString(CultureInfo.InvariantCulture);
                 }
 
-                var problemDetailsService = context.HttpContext.RequestServices.GetRequiredService<IProblemDetailsService>();
-                await problemDetailsService.TryWriteAsync(new ProblemDetailsContext
-                {
-                    HttpContext = context.HttpContext,
-                    ProblemDetails = new ProblemDetails
+                var problemDetailsService =
+                    context.HttpContext.RequestServices
+                        .GetRequiredService<IProblemDetailsService>();
+
+                await problemDetailsService.TryWriteAsync(
+                    new ProblemDetailsContext
                     {
-                        Status = StatusCodes.Status429TooManyRequests,
-                        Title = "Too Many Requests",
-                        Detail = "Too many authentication requests. Try again later."
-                    }
-                });
+                        HttpContext = context.HttpContext,
+                        ProblemDetails = new ProblemDetails
+                        {
+                            Status = StatusCodes.Status429TooManyRequests,
+                            Title = "Too Many Requests",
+                            Detail =
+                                "Too many authentication requests. Try again later."
+                        }
+                    });
             };
 
-            options.AddPolicy(RateLimitPolicyNames.Login,
-                httpContext => CreatePartition(httpContext, settings.Login));
-            options.AddPolicy(RateLimitPolicyNames.Registration,
-                httpContext => CreatePartition(httpContext, settings.Registration));
-            options.AddPolicy(RateLimitPolicyNames.Recovery,
-                httpContext => CreatePartition(httpContext, settings.Recovery));
-            options.AddPolicy(RateLimitPolicyNames.Refresh,
-                httpContext => CreatePartition(httpContext, settings.Refresh));
+            options.AddPolicy(
+                RateLimitPolicyNames.Login,
+                httpContext =>
+                    CreatePartition(httpContext, settings.Login));
+            options.AddPolicy(
+                RateLimitPolicyNames.Registration,
+                httpContext =>
+                    CreatePartition(httpContext, settings.Registration));
+            options.AddPolicy(
+                RateLimitPolicyNames.Recovery,
+                httpContext =>
+                    CreatePartition(httpContext, settings.Recovery));
+            options.AddPolicy(
+                RateLimitPolicyNames.Refresh,
+                httpContext =>
+                    CreatePartition(httpContext, settings.Refresh));
         });
     }
 
-    public static void ConfigureTransportSecurity(this IServiceCollection services)
+    public static void ConfigureTransportSecurity(
+        this IServiceCollection services)
     {
         services.AddHsts(options =>
         {
@@ -116,21 +151,33 @@ public static class SecurityExtensions
         });
     }
 
-    public static void ConfigureHealthChecks(this IServiceCollection services, IConfiguration configuration)
+    public static void ConfigureHealthChecks(
+        this IServiceCollection services,
+        IConfiguration configuration,
+        bool includeHangfire)
     {
         var builder = services.AddHealthChecks()
-            .AddCheck<DatabaseHealthCheck>("database", tags: ["ready"]);
+            .AddCheck<DatabaseHealthCheck>(
+                "database",
+                tags: ["ready"]);
 
-        var hangfire = configuration.GetSection("Hangfire").Get<HangfireSettings>() ?? new HangfireSettings();
-        if (hangfire.Enabled)
+        var hangfire =
+            configuration.GetSection("Hangfire").Get<HangfireSettings>()
+            ?? new HangfireSettings();
+
+        if (includeHangfire && hangfire.Enabled)
         {
-            builder.AddCheck<HangfireHealthCheck>("hangfire", tags: ["ready"]);
+            builder.AddCheck<HangfireHealthCheck>(
+                "hangfire",
+                tags: ["ready"]);
         }
     }
 
     public static void UseConfiguredForwardedHeaders(this WebApplication app)
     {
-        var settings = app.Services.GetRequiredService<IOptions<ProxySettings>>().Value;
+        var settings =
+            app.Services.GetRequiredService<IOptions<ProxySettings>>().Value;
+
         if (settings.Enabled)
         {
             app.UseForwardedHeaders();
@@ -143,10 +190,13 @@ public static class SecurityExtensions
         {
             context.Response.OnStarting(() =>
             {
-                context.Response.Headers["X-Content-Type-Options"] = "nosniff";
+                context.Response.Headers["X-Content-Type-Options"] =
+                    "nosniff";
                 context.Response.Headers["X-Frame-Options"] = "DENY";
-                context.Response.Headers["Referrer-Policy"] = "no-referrer";
-                context.Response.Headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()";
+                context.Response.Headers["Referrer-Policy"] =
+                    "no-referrer";
+                context.Response.Headers["Permissions-Policy"] =
+                    "camera=(), microphone=(), geolocation=()";
                 return Task.CompletedTask;
             });
 
@@ -158,7 +208,9 @@ public static class SecurityExtensions
         HttpContext httpContext,
         RateLimitPolicySettings settings)
     {
-        var partitionKey = httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+        var partitionKey =
+            httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+
         return RateLimitPartition.GetFixedWindowLimiter(
             partitionKey,
             _ => new FixedWindowRateLimiterOptions

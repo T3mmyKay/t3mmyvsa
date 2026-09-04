@@ -22,7 +22,7 @@
 
   <ItemGroup>
     <Content Include="../T3mmyvsa.Web/**/*"
-             Exclude="../T3mmyvsa.Web/**/bin/**;../T3mmyvsa.Web/**/obj/**;../T3mmyvsa.Web/.vs/**;../T3mmyvsa.Web/.git/**;../T3mmyvsa.Web/.idea/**;../T3mmyvsa.Web/logs/**;../T3mmyvsa.Web/**/*.nupkg;../T3mmyvsa.Web/**/*.snupkg">
+             Exclude="../T3mmyvsa.Web/**/bin/**;../T3mmyvsa.Web/**/obj/**;../T3mmyvsa.Web/.vs/**;../T3mmyvsa.Web/.git/**;../T3mmyvsa.Web/.idea/**;../T3mmyvsa.Web/logs/**;../T3mmyvsa.Web/**/*.nupkg;../T3mmyvsa.Web/**/*.snupkg;../T3mmyvsa.Web/Data/Migrations/**">
       <PackagePath>content/T3mmy.VSA.Templates</PackagePath>
     </Content>
   </ItemGroup>

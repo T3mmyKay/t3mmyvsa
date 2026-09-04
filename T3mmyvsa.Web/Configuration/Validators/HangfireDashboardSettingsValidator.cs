@@ -9,7 +9,7 @@ public sealed class HangfireDashboardSettingsValidator : AbstractValidator<Hangf
     {
         RuleFor(x => x.Path)
             .NotEmpty()
-            .Must(path => path.StartsWith('/', StringComparison.Ordinal) && !path.Contains(' '))
+            .Must(path => path.StartsWith("/", StringComparison.Ordinal) && !path.Contains(' '))
             .WithMessage("Hangfire dashboard path must start with '/' and contain no spaces.");
 
         When(x => x.Enabled, () =>
