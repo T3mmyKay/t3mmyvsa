@@ -18,21 +18,21 @@ public sealed class ApiFoundationTests(T3mmyvsaWebApplicationFactory factory)
     [Fact]
     public async Task Liveness_ShouldBeHealthy()
     {
-        var response = await _client.GetAsync("/health/live");
+        var response = await _client.GetAsync("/health/live", TestContext.Current.CancellationToken);
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
     }
 
     [Fact]
     public async Task Readiness_ShouldReachRealPostgreSql()
     {
-        var response = await _client.GetAsync("/health/ready");
+        var response = await _client.GetAsync("/health/ready", TestContext.Current.CancellationToken);
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
     }
 
     [Fact]
     public async Task ProtectedEndpoint_ShouldRejectAnonymousCaller()
     {
-        var response = await _client.GetAsync("/api/v1/users");
+        var response = await _client.GetAsync("/api/v1/users", TestContext.Current.CancellationToken);
         response.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
     }
 
@@ -41,7 +41,8 @@ public sealed class ApiFoundationTests(T3mmyvsaWebApplicationFactory factory)
     {
         var response = await _client.PostAsJsonAsync(
             "/api/v1/auth/login",
-            new { Email = "not-an-email", Password = "" });
+            new { Email = "not-an-email", Password = "" },
+            TestContext.Current.CancellationToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
         response.Content.Headers.ContentType?.MediaType.ShouldBe("application/problem+json");
