@@ -13,6 +13,18 @@ public class GetUsersQueryHandler(
 {
     public async Task<PaginatedResponse<UserResponse>> Handle(GetUsersQuery query, CancellationToken cancellationToken)
     {
+        var page = query.Page ?? 1;
+        var pageSize = query.PageSize ?? 15;
+        if (page < 1)
+        {
+            throw new BadHttpRequestException("Page must be greater than zero.");
+        }
+
+        if (pageSize is < 1 or > 100)
+        {
+            throw new BadHttpRequestException("Page size must be between 1 and 100.");
+        }
+
         var queryable = userManager.Users.AsNoTracking();
 
         if (!string.IsNullOrWhiteSpace(query.Search))
@@ -44,8 +56,6 @@ public class GetUsersQueryHandler(
                 _ => queryable.OrderBy(u => u.UserName).ThenBy(u => u.Id)
             };
 
-        var page = query.Page ?? 1;
-        var pageSize = query.PageSize ?? 15;
         var pagedUsers = await PagedList<User>.CreateAsync(queryable, page, pageSize, cancellationToken);
         var userIds = pagedUsers.Select(x => x.Id).ToList();
 
