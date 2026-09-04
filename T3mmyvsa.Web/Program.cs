@@ -30,6 +30,14 @@ try
             "GetDocument.Insider",
             StringComparison.Ordinal);
 
+    if (isBuildTimeOpenApiGeneration)
+    {
+        // Build-time OpenAPI generation must not depend on deployment secrets.
+        // This in-memory key is never used by the running application.
+        builder.Configuration["JwtSettings:Secret"] =
+            "T3mmyvsa-BuildTime-OpenApi-Only-Secret-Key-000000";
+    }
+
     builder.WebHost.ConfigureKestrel(
         options => options.AddServerHeader = false);
 
