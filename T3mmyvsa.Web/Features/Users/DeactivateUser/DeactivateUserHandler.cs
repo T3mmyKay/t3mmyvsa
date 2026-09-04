@@ -18,9 +18,12 @@ public class DeactivateUserHandler(UserManager<User> userManager, IAuthSessionSe
             throw new InvalidOperationException("Admin users cannot be deactivated.");
         }
 
-        // Identity only honors LockoutEnd when lockout is enabled for the account.
-        user.LockoutEnabled = true;
-        user.LockoutEnd = DateTimeOffset.MaxValue;
+        if (!user.IsActive)
+        {
+            return;
+        }
+
+        user.IsActive = false;
         var result = await userManager.UpdateAsync(user);
         if (!result.Succeeded)
         {
