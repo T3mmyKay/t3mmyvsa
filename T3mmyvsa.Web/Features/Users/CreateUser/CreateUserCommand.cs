@@ -1,10 +1,9 @@
 namespace T3mmyvsa.Features.Users.CreateUser;
 
 public record CreateUserCommand(
-    [Required, StringLength(100, MinimumLength = 2)] string FirstName,
-    [Required, StringLength(100, MinimumLength = 2)] string LastName,
-    [Required, EmailAddress] string Email,
-    [Required, Phone] string PhoneNumber,
-    [Required, StringLength(100, MinimumLength = 10)] string Password,
-    [Required] string Role
-) : ICommand<string>;
+    string FirstName,
+    string LastName,
+    string Email,
+    string PhoneNumber,
+    string Password,
+    string Role) : ICommand<string>;

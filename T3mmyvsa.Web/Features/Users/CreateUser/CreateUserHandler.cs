@@ -1,4 +1,5 @@
 using T3mmyvsa.Entities;
+using T3mmyvsa.Exceptions;
 using T3mmyvsa.Interfaces;
 
 namespace T3mmyvsa.Features.Users.CreateUser;
@@ -11,7 +12,7 @@ public class CreateUserHandler(UserManager<User> userManager, IUserRoleService u
         var email = command.Email.Trim();
         if (await userManager.FindByEmailAsync(email) is not null)
         {
-            throw new InvalidOperationException("A user with this email already exists.");
+            throw new ConflictException("A user with this email already exists.");
         }
 
         var user = new User

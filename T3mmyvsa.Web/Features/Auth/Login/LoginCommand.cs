@@ -1,6 +1,3 @@
 namespace T3mmyvsa.Features.Auth.Login;
 
-public record LoginCommand(
-    [Required, EmailAddress] string Email,
-    [Required] string Password
-) : ICommand<LoginResponse>;
+public record LoginCommand(string Email, string Password) : ICommand<LoginResponse>;

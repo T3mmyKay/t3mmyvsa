@@ -1,3 +1,5 @@
+using T3mmyvsa.Exceptions;
+
 namespace T3mmyvsa.Features.Roles.CreateRole;
 
 public class CreateRoleCommandHandler(RoleManager<IdentityRole> roleManager)
@@ -8,7 +10,7 @@ public class CreateRoleCommandHandler(RoleManager<IdentityRole> roleManager)
         var roleName = request.RoleName.Trim();
         if (await roleManager.RoleExistsAsync(roleName))
         {
-            throw new InvalidOperationException("Role already exists.");
+            throw new ConflictException("Role already exists.");
         }
 
         var result = await roleManager.CreateAsync(new IdentityRole(roleName));

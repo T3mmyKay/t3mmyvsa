@@ -30,7 +30,7 @@ public sealed class ValidationFilter : IEndpointFilter
                         group => group.Key,
                         group => group.Select(error => error.ErrorMessage).Distinct().ToArray());
 
-                return Results.ValidationProblem(errors, statusCode: StatusCodes.Status400BadRequest);
+                return Results.ValidationProblem(errors);
             }
         }
 

@@ -1,5 +1,6 @@
 using T3mmyvsa.Authorization.Enums;
 using T3mmyvsa.Data;
+using T3mmyvsa.Entities;
 using T3mmyvsa.Exceptions;
 using T3mmyvsa.Extensions;
 using T3mmyvsa.Interfaces;
@@ -41,7 +42,7 @@ public class GetRecentActivitiesHandler(
             .OrderByDescending(x => x.Timestamp)
             .ThenByDescending(x => x.Id);
 
-        var paged = await PagedList<Entities.AuditLog>.CreateAsync(
+        var paged = await PagedList<AuditLog>.CreateAsync(
             source,
             request.Page ?? 1,
             request.PageSize ?? 25,

@@ -9,16 +9,9 @@ public class DeleteRoleEndpoint : ICarterModule
     {
         app.MapDelete("roles/{roleId}", async (string roleId, IMediator mediator, CancellationToken ct) =>
         {
-            try
-            {
-                var command = new DeleteRoleCommand(roleId);
-                var response = await mediator.SendCommandAsync<DeleteRoleCommand, DeleteRoleResponse>(command, ct);
-                return Results.Ok(response);
-            }
-            catch (InvalidOperationException ex)
-            {
-                return Results.BadRequest(ex.Message);
-            }
+            var command = new DeleteRoleCommand(roleId);
+            var response = await mediator.SendCommandAsync<DeleteRoleCommand, DeleteRoleResponse>(command, ct);
+            return Results.Ok(response);
         })
         .HasApiVersion(1)
         .HasApiVersion(2)
@@ -30,6 +23,8 @@ public class DeleteRoleEndpoint : ICarterModule
         .ProducesProblem(StatusCodes.Status400BadRequest)
         .ProducesProblem(StatusCodes.Status401Unauthorized)
         .ProducesProblem(StatusCodes.Status403Forbidden)
+        .ProducesProblem(StatusCodes.Status404NotFound)
+        .ProducesProblem(StatusCodes.Status409Conflict)
         .HasPermissions(AppPermission.RolesDelete);
     }
 }

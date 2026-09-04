@@ -9,15 +9,8 @@ public class CreateRoleEndpoint : ICarterModule
     {
         app.MapPost("roles", async ([FromBody] CreateRoleCommand command, IMediator mediator, CancellationToken ct) =>
         {
-            try
-            {
-                var response = await mediator.SendCommandAsync<CreateRoleCommand, CreateRoleResponse>(command, ct);
-                return Results.Ok(response);
-            }
-            catch (InvalidOperationException ex)
-            {
-                return Results.BadRequest(ex.Message);
-            }
+            var response = await mediator.SendCommandAsync<CreateRoleCommand, CreateRoleResponse>(command, ct);
+            return Results.Ok(response);
         })
         .HasApiVersion(1)
         .HasApiVersion(2)
@@ -29,6 +22,7 @@ public class CreateRoleEndpoint : ICarterModule
         .ProducesProblem(StatusCodes.Status400BadRequest)
         .ProducesProblem(StatusCodes.Status401Unauthorized)
         .ProducesProblem(StatusCodes.Status403Forbidden)
+        .ProducesProblem(StatusCodes.Status409Conflict)
         .HasPermissions(AppPermission.RolesCreate);
     }
 }

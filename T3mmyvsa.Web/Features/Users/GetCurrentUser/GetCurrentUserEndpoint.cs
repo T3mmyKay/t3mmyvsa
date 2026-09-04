@@ -6,19 +6,8 @@ public class GetCurrentUserEndpoint : ICarterModule
     {
         app.MapGet("users/me", async (IMediator mediator, CancellationToken ct) =>
         {
-            try
-            {
-                var response = await mediator.SendQueryAsync<GetCurrentUserQuery, CurrentUserResponse>(new GetCurrentUserQuery(), ct);
-                return Results.Ok(response);
-            }
-            catch (InvalidOperationException)
-            {
-                return Results.Unauthorized();
-            }
-            catch (KeyNotFoundException ex)
-            {
-                return Results.NotFound(ex.Message);
-            }
+            var response = await mediator.SendQueryAsync<GetCurrentUserQuery, CurrentUserResponse>(new GetCurrentUserQuery(), ct);
+            return Results.Ok(response);
         })
         .HasApiVersion(1)
         .HasApiVersion(2)
@@ -27,7 +16,6 @@ public class GetCurrentUserEndpoint : ICarterModule
         .WithSummary("Get current user details")
         .WithDescription("Retrieves details, roles, and permissions of the currently authenticated user.")
         .Produces<CurrentUserResponse>()
-        .ProducesProblem(StatusCodes.Status400BadRequest)
         .ProducesProblem(StatusCodes.Status401Unauthorized)
         .ProducesProblem(StatusCodes.Status404NotFound)
         .RequireAuthorization();

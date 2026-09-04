@@ -10,6 +10,7 @@ using T3mmyvsa.Authorization;
 using T3mmyvsa.Configuration;
 using T3mmyvsa.Data;
 using T3mmyvsa.Entities;
+using T3mmyvsa.Exceptions;
 using T3mmyvsa.Interfaces;
 using TickerQ.DependencyInjection;
 using TickerQ.EntityFrameworkCore.DependencyInjection;
@@ -44,21 +45,13 @@ public static class ServiceExtensions
 
         public void ConfigureProblemDetails()
         {
+            services.AddExceptionHandler<GlobalExceptionHandler>();
             services.AddProblemDetails(options =>
             {
                 options.CustomizeProblemDetails = context =>
                 {
                     context.ProblemDetails.Instance = $"{context.HttpContext.Request.Method} {context.HttpContext.Request.Path}";
                     context.ProblemDetails.Extensions.TryAdd("requestId", context.HttpContext.TraceIdentifier);
-
-                    if (context.Exception is BadHttpRequestException badRequestEx)
-                    {
-                        context.ProblemDetails.Title = "Invalid Request";
-                        context.ProblemDetails.Status = StatusCodes.Status400BadRequest;
-                        context.ProblemDetails.Detail = badRequestEx.Message;
-                        context.ProblemDetails.Type = "https://tools.ietf.org/html/rfc7231#section-6.5.1";
-                        context.HttpContext.Response.StatusCode = StatusCodes.Status400BadRequest;
-                    }
                 };
             });
         }
@@ -208,7 +201,6 @@ public static class ServiceExtensions
 
         public void ConfigureValidation()
         {
-            services.AddValidation();
             services.AddValidatorsFromAssembly(typeof(Program).Assembly);
         }
 

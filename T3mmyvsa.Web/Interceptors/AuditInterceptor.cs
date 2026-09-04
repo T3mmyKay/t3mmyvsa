@@ -103,7 +103,9 @@ public sealed class AuditInterceptor(IHttpContextAccessor httpContextAccessor) :
             if (entry.Entity is not BaseEntity
                 && entry.Entity is not User
                 && entry.Entity is not IdentityRole
-                && entry.Entity is not IdentityRoleClaim<string>)
+                && entry.Entity is not IdentityRoleClaim<string>
+                && entry.Entity is not IdentityUserRole<string>
+                && entry.Entity is not IdentityUserClaim<string>)
             {
                 continue;
             }
@@ -114,6 +116,8 @@ public sealed class AuditInterceptor(IHttpContextAccessor httpContextAccessor) :
                 User user => user.Id,
                 IdentityRole role => role.Id,
                 IdentityRoleClaim<string> roleClaim => $"{roleClaim.RoleId}:{roleClaim.ClaimType}:{roleClaim.ClaimValue}",
+                IdentityUserRole<string> userRole => $"{userRole.UserId}:{userRole.RoleId}",
+                IdentityUserClaim<string> userClaim => $"{userClaim.UserId}:{userClaim.ClaimType}:{userClaim.ClaimValue}",
                 _ => null
             };
 
@@ -208,6 +212,11 @@ public sealed class AuditInterceptor(IHttpContextAccessor httpContextAccessor) :
             IdentityRoleClaim<string> => propertyName is nameof(IdentityRoleClaim<string>.RoleId)
                 or nameof(IdentityRoleClaim<string>.ClaimType)
                 or nameof(IdentityRoleClaim<string>.ClaimValue),
+            IdentityUserRole<string> => propertyName is nameof(IdentityUserRole<string>.UserId)
+                or nameof(IdentityUserRole<string>.RoleId),
+            IdentityUserClaim<string> => propertyName is nameof(IdentityUserClaim<string>.UserId)
+                or nameof(IdentityUserClaim<string>.ClaimType)
+                or nameof(IdentityUserClaim<string>.ClaimValue),
             BaseEntity => true,
             _ => false
         };

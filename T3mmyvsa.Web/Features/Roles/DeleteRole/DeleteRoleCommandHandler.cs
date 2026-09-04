@@ -1,5 +1,6 @@
 using T3mmyvsa.Authorization.Enums;
 using T3mmyvsa.Data;
+using T3mmyvsa.Exceptions;
 
 namespace T3mmyvsa.Features.Roles.DeleteRole;
 
@@ -13,17 +14,16 @@ public class DeleteRoleCommandHandler(RoleManager<IdentityRole> roleManager, App
     public async Task<DeleteRoleResponse> Handle(DeleteRoleCommand request, CancellationToken cancellationToken)
     {
         var role = await roleManager.FindByIdAsync(request.RoleId)
-            ?? throw new InvalidOperationException("Role not found.");
+            ?? throw new KeyNotFoundException("Role not found.");
 
         if (role.NormalizedName is not null && ProtectedRoles.Contains(role.NormalizedName))
         {
-            throw new InvalidOperationException($"Cannot delete protected system role '{role.Name}'.");
+            throw new ConflictException($"Cannot delete protected system role '{role.Name}'.");
         }
 
         if (await db.UserRoles.AsNoTracking().AnyAsync(x => x.RoleId == role.Id, cancellationToken))
         {
-            throw new InvalidOperationException(
-                $"Cannot delete role '{role.Name}' while it is assigned to users. Reassign those users first.");
+            throw new ConflictException($"Cannot delete role '{role.Name}' while it is assigned to users. Reassign those users first.");
         }
 
         var result = await roleManager.DeleteAsync(role);

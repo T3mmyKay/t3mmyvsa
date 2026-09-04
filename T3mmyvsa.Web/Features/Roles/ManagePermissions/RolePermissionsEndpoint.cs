@@ -11,12 +11,8 @@ public class RolePermissionsEndpoint : ICarterModule
 
         group.MapGet("", async (string id, IMediator mediator, CancellationToken ct) =>
         {
-            try
-            {
-                var response = await mediator.SendQueryAsync<GetRolePermissionsQuery, List<string>>(new GetRolePermissionsQuery(id), ct);
-                return Results.Ok(response);
-            }
-            catch (KeyNotFoundException) { return Results.NotFound(); }
+            var response = await mediator.SendQueryAsync<GetRolePermissionsQuery, List<string>>(new GetRolePermissionsQuery(id), ct);
+            return Results.Ok(response);
         })
         .HasApiVersion(1)
         .HasApiVersion(2)
@@ -31,20 +27,19 @@ public class RolePermissionsEndpoint : ICarterModule
 
         group.MapPut("", async (string id, [FromBody] UpdateRolePermissionsCommand command, IMediator mediator, CancellationToken ct) =>
         {
-            if (id != command.RoleId) return Results.BadRequest("Mismatched ID.");
-
-            try
+            if (!string.Equals(id, command.RoleId, StringComparison.Ordinal))
             {
-                await mediator.SendCommandAsync<UpdateRolePermissionsCommand>(command, ct);
-                return Results.NoContent();
+                throw new BadHttpRequestException("Route ID does not match command ID.");
             }
-            catch (KeyNotFoundException) { return Results.NotFound(); }
+
+            await mediator.SendCommandAsync<UpdateRolePermissionsCommand>(command, ct);
+            return Results.NoContent();
         })
         .HasApiVersion(1)
         .HasApiVersion(2)
         .WithName(nameof(UpdateRolePermissionsCommand))
         .WithSummary("Update role permissions")
-        .WithDescription("Replaces the existing permissions for a role with the provided list.")
+        .WithDescription("Atomically replaces the existing permissions for a role with the provided list.")
         .Produces(StatusCodes.Status204NoContent)
         .ProducesProblem(StatusCodes.Status400BadRequest)
         .ProducesProblem(StatusCodes.Status401Unauthorized)

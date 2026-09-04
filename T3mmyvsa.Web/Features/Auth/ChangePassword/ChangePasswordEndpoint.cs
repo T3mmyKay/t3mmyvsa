@@ -6,19 +6,8 @@ public class ChangePasswordEndpoint : ICarterModule
     {
         app.MapPost("auth/change-password", async ([FromBody] ChangePasswordCommand command, IMediator mediator, CancellationToken ct) =>
         {
-            try
-            {
-                await mediator.SendCommandAsync(command, ct);
-                return Results.Ok();
-            }
-            catch (UnauthorizedAccessException)
-            {
-                return Results.Unauthorized();
-            }
-            catch (InvalidOperationException ex)
-            {
-                return Results.BadRequest(new ProblemDetails { Title = "Change Password Failed", Detail = ex.Message });
-            }
+            await mediator.SendCommandAsync(command, ct);
+            return Results.Ok();
         })
         .HasApiVersion(1)
         .HasApiVersion(2)

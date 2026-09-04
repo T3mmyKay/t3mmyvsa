@@ -6,15 +6,8 @@ public class LoginEndpoint : ICarterModule
     {
         app.MapPost("auth/login", async ([FromBody] LoginCommand command, IMediator mediator, CancellationToken ct) =>
         {
-            try
-            {
-                var response = await mediator.SendCommandAsync<LoginCommand, LoginResponse>(command, ct);
-                return Results.Ok(response);
-            }
-            catch (UnauthorizedAccessException)
-            {
-                return Results.Unauthorized();
-            }
+            var response = await mediator.SendCommandAsync<LoginCommand, LoginResponse>(command, ct);
+            return Results.Ok(response);
         })
         .HasApiVersion(1)
         .HasApiVersion(2)

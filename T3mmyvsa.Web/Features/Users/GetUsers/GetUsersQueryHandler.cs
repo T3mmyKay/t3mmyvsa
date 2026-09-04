@@ -15,16 +15,6 @@ public class GetUsersQueryHandler(
     {
         var page = query.Page ?? 1;
         var pageSize = query.PageSize ?? 15;
-        if (page < 1)
-        {
-            throw new BadHttpRequestException("Page must be greater than zero.");
-        }
-
-        if (pageSize is < 1 or > 100)
-        {
-            throw new BadHttpRequestException("Page size must be between 1 and 100.");
-        }
-
         var queryable = userManager.Users.AsNoTracking();
 
         if (!string.IsNullOrWhiteSpace(query.Search))
@@ -150,7 +140,7 @@ public class GetUsersQueryHandler(
         var links = new PaginationLinks
         {
             First = BuildLink(1),
-            Last = BuildLink(pagedUsers.TotalPages),
+            Last = BuildLink(Math.Max(pagedUsers.TotalPages, 1)),
             Prev = pagedUsers.HasPrevious ? BuildLink(pagedUsers.CurrentPage - 1) : null,
             Next = pagedUsers.HasNext ? BuildLink(pagedUsers.CurrentPage + 1) : null
         };

@@ -6,15 +6,8 @@ public class RegisterEndpoint : ICarterModule
     {
         app.MapPost("auth/register", async ([FromBody] RegisterCommand command, IMediator mediator, CancellationToken ct) =>
         {
-            try
-            {
-                await mediator.SendCommandAsync<RegisterCommand>(command, ct);
-                return Results.Ok(new { Message = "User created successfully!" });
-            }
-            catch (InvalidOperationException ex)
-            {
-                return Results.BadRequest(ex.Message);
-            }
+            await mediator.SendCommandAsync<RegisterCommand>(command, ct);
+            return Results.Ok(new { Message = "User created successfully!" });
         })
         .HasApiVersion(1)
         .HasApiVersion(2)

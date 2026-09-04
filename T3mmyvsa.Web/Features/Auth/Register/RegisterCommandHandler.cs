@@ -1,5 +1,6 @@
 using T3mmyvsa.Authorization.Enums;
 using T3mmyvsa.Entities;
+using T3mmyvsa.Exceptions;
 using T3mmyvsa.Interfaces;
 
 namespace T3mmyvsa.Features.Auth.Register;
@@ -12,7 +13,7 @@ public class RegisterCommandHandler(UserManager<User> userManager, IUserRoleServ
         var email = request.Email.Trim();
         if (await userManager.FindByEmailAsync(email) is not null)
         {
-            throw new InvalidOperationException("User already exists!");
+            throw new ConflictException("A user with this email already exists.");
         }
 
         var user = new User

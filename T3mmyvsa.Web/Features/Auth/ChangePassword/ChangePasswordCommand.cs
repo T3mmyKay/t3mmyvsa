@@ -1,6 +1,3 @@
 namespace T3mmyvsa.Features.Auth.ChangePassword;
 
-public record ChangePasswordCommand(
-    [Required] string CurrentPassword,
-    [Required] string NewPassword
-) : ICommand;
+public record ChangePasswordCommand(string CurrentPassword, string NewPassword) : ICommand;

@@ -1,4 +1,5 @@
 using T3mmyvsa.Authorization.Enums;
+using T3mmyvsa.Exceptions;
 
 namespace T3mmyvsa.Features.Roles.UpdateRole;
 
@@ -15,10 +16,17 @@ public class UpdateRoleCommandHandler(RoleManager<IdentityRole> roleManager)
 
         if (role.Name is not null && ProtectedRoles.Contains(role.Name))
         {
-            throw new InvalidOperationException($"Cannot rename protected system role '{role.Name}'.");
+            throw new ConflictException($"Cannot rename protected system role '{role.Name}'.");
         }
 
-        role.Name = request.RoleName.Trim();
+        var roleName = request.RoleName.Trim();
+        var existing = await roleManager.FindByNameAsync(roleName);
+        if (existing is not null && !string.Equals(existing.Id, role.Id, StringComparison.Ordinal))
+        {
+            throw new ConflictException($"Role '{roleName}' already exists.");
+        }
+
+        role.Name = roleName;
         var result = await roleManager.UpdateAsync(role);
         if (!result.Succeeded)
         {
