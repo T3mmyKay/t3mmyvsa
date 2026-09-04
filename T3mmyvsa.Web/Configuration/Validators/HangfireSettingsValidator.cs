@@ -6,8 +6,15 @@ public sealed class HangfireSettingsValidator : AbstractValidator<HangfireSettin
 {
     public HangfireSettingsValidator()
     {
+        RuleFor(x => x.StorageProvider)
+            .NotEmpty()
+            .Must(IsSupportedStorageProvider)
+            .WithMessage(
+                "Hangfire StorageProvider must be 'inherit', 'sqlserver'/'mssql', or 'postgresql'/'postgres'/'pgsql'.");
+
         RuleFor(x => x.ConnectionStringName)
-            .NotEmpty();
+            .Matches("^[A-Za-z][A-Za-z0-9_-]*$")
+            .When(x => !string.IsNullOrWhiteSpace(x.ConnectionStringName));
 
         RuleFor(x => x.SchemaName)
             .NotEmpty()
@@ -29,5 +36,16 @@ public sealed class HangfireSettingsValidator : AbstractValidator<HangfireSettin
 
         RuleFor(x => x.Dashboard)
             .SetValidator(new HangfireDashboardSettingsValidator());
+    }
+
+    private static bool IsSupportedStorageProvider(string? value)
+    {
+        if (string.Equals(value, "inherit", StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        return DatabaseProviders.TryNormalize(value, out var provider) &&
+               provider is DatabaseProviders.SqlServer or DatabaseProviders.PostgreSql;
     }
 }

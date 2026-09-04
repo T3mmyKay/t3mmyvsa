@@ -89,7 +89,9 @@ jobs:
       - name: Smoke test packaged CLI and template
         shell: bash
         env:
-          ConnectionStrings__sqlConnection: "Server=localhost;Database=T3mmyVsaSmoke;User Id=sa;Password=SmokeOnly_Password123!;TrustServerCertificate=True"
+          DatabaseSettings__Provider: "sqlserver"
+          DatabaseSettings__ConnectionStringName: "appDatabase"
+          ConnectionStrings__appDatabase: "Server=localhost;Database=T3mmyVsaSmoke;User Id=sa;Password=SmokeOnly_Password123!;TrustServerCertificate=True"
           JwtSettings__Secret: "SmokeOnlyJwtSigningSecret_ChangeMe_1234567890"
           Hangfire__Enabled: "false"
         run: |

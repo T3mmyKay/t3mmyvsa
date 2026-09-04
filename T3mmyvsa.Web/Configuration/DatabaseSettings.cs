@@ -1,14 +1,14 @@
 namespace T3mmyvsa.Configuration;
 
-public class DatabaseSettings
+public sealed class DatabaseSettings
 {
-    /// <summary>
-    /// Database provider: "mssql" or "mysql"
-    /// </summary>
-    public string DBProvider { get; set; } = "mssql";
+    public string Provider { get; set; } = DatabaseProviders.SqlServer;
+    public string ConnectionStringName { get; set; } = "appDatabase";
 
-    /// <summary>
-    /// Connection string for the database
-    /// </summary>
-    public string ConnectionString { get; set; } = string.Empty;
+    // Compatibility alias for projects created before v2.0.
+    // New applications should configure DatabaseSettings:Provider.
+    public string? DBProvider { get; set; }
+
+    public string ConfiguredProvider =>
+        string.IsNullOrWhiteSpace(DBProvider) ? Provider : DBProvider;
 }

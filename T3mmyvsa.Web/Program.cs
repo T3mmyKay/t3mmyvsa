@@ -30,13 +30,15 @@ try
             "GetDocument.Insider",
             StringComparison.Ordinal);
 
-    builder.WebHost.ConfigureKestrel(options => options.AddServerHeader = false);
+    builder.WebHost.ConfigureKestrel(
+        options => options.AddServerHeader = false);
 
-    builder.Host.UseSerilog((context, services, configuration) => configuration
-        .ReadFrom.Configuration(context.Configuration)
-        .ReadFrom.Services(services)
-        .Enrich.FromLogContext()
-        .Enrich.WithExceptionDetails());
+    builder.Host.UseSerilog((context, services, configuration) =>
+        configuration
+            .ReadFrom.Configuration(context.Configuration)
+            .ReadFrom.Services(services)
+            .Enrich.FromLogContext()
+            .Enrich.WithExceptionDetails());
 
     builder.Services.AddOpenApi("v1", options =>
     {
@@ -49,9 +51,9 @@ try
         options.AddDocumentTransformer<ServerUrlTransformer>();
     });
 
-    builder.Services.ConfigureDatabaseSettings(builder.Configuration);
-    builder.Services.ConfigureSqlContext(builder.Configuration);
-    builder.Services.ConfigureDbConnection(builder.Configuration);
+    builder.Services.ConfigureDatabase(
+        builder.Configuration,
+        allowBuildTimePlaceholder: isBuildTimeOpenApiGeneration);
     builder.Services.ConfigureIdentity();
     builder.Services.ConfigureJwt(builder.Configuration);
     builder.Services.ConfigureMail(builder.Configuration);
@@ -68,42 +70,57 @@ try
     builder.Services.ConfigureForwardedHeaders(builder.Configuration);
     builder.Services.ConfigureRateLimiting(builder.Configuration);
     builder.Services.ConfigureTransportSecurity();
-    builder.Services.ConfigureHangfire(builder.Configuration, !isBuildTimeOpenApiGeneration);
-    builder.Services.ConfigureHealthChecks(builder.Configuration);
+    builder.Services.ConfigureHangfire(
+        builder.Configuration,
+        startServer: !isBuildTimeOpenApiGeneration,
+        skipStorageConfiguration: isBuildTimeOpenApiGeneration);
+    builder.Services.ConfigureHealthChecks(
+        builder.Configuration,
+        includeHangfire: !isBuildTimeOpenApiGeneration);
     builder.Services.ConfigureCortexMediator(builder.Configuration);
-    builder.Services.Configure<Microsoft.AspNetCore.Http.Json.JsonOptions>(options =>
-    {
-        options.SerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter());
-        options.SerializerOptions.DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull;
-    });
+
+    builder.Services.Configure<Microsoft.AspNetCore.Http.Json.JsonOptions>(
+        options =>
+        {
+            options.SerializerOptions.Converters.Add(
+                new System.Text.Json.Serialization.JsonStringEnumConverter());
+            options.SerializerOptions.DefaultIgnoreCondition =
+                System.Text.Json.Serialization.JsonIgnoreCondition
+                    .WhenWritingNull;
+        });
 
     var app = builder.Build();
 
     app.UseStatusCodePages(async statusCodeContext =>
     {
         var httpContext = statusCodeContext.HttpContext;
-        var problemDetailsService = httpContext.RequestServices.GetRequiredService<IProblemDetailsService>();
+        var problemDetailsService =
+            httpContext.RequestServices
+                .GetRequiredService<IProblemDetailsService>();
         var statusCode = httpContext.Response.StatusCode;
 
-        await problemDetailsService.TryWriteAsync(new ProblemDetailsContext
-        {
-            HttpContext = httpContext,
-            ProblemDetails = new ProblemDetails
+        await problemDetailsService.TryWriteAsync(
+            new ProblemDetailsContext
             {
-                Status = statusCode,
-                Title = statusCode switch
+                HttpContext = httpContext,
+                ProblemDetails = new ProblemDetails
                 {
-                    StatusCodes.Status400BadRequest => "Bad Request",
-                    StatusCodes.Status401Unauthorized => "Unauthorized",
-                    StatusCodes.Status403Forbidden => "Forbidden",
-                    StatusCodes.Status404NotFound => "Not Found",
-                    StatusCodes.Status409Conflict => "Conflict",
-                    StatusCodes.Status429TooManyRequests => "Too Many Requests",
-                    _ => "Request Failed"
+                    Status = statusCode,
+                    Title = statusCode switch
+                    {
+                        StatusCodes.Status400BadRequest => "Bad Request",
+                        StatusCodes.Status401Unauthorized => "Unauthorized",
+                        StatusCodes.Status403Forbidden => "Forbidden",
+                        StatusCodes.Status404NotFound => "Not Found",
+                        StatusCodes.Status409Conflict => "Conflict",
+                        StatusCodes.Status429TooManyRequests =>
+                            "Too Many Requests",
+                        _ => "Request Failed"
+                    }
                 }
-            }
-        });
+            });
     });
+
     app.UseExceptionHandler();
 
     app.UseConfiguredForwardedHeaders();
@@ -123,34 +140,55 @@ try
     app.UseAuthentication();
     app.UseAuthorization();
 
-    var exposeApiDocs = isBuildTimeOpenApiGeneration ||
-                        app.Environment.IsDevelopment() ||
-                        app.Configuration.GetValue<bool>("ApiDocumentation:Enabled");
+    var exposeApiDocs =
+        isBuildTimeOpenApiGeneration ||
+        app.Environment.IsDevelopment() ||
+        app.Configuration.GetValue<bool>("ApiDocumentation:Enabled");
+
     if (exposeApiDocs)
     {
         app.MapOpenApi();
         app.MapScalarApiReference();
-        app.MapGet("/", () => Results.Redirect("/scalar/v1")).ExcludeFromDescription();
+        app.MapGet("/", () => Results.Redirect("/scalar/v1"))
+            .ExcludeFromDescription();
     }
 
-    app.MapHealthChecks("/health/live", new HealthCheckOptions
-    {
-        Predicate = _ => false
-    }).AllowAnonymous();
+    app.MapHealthChecks(
+            "/health/live",
+            new HealthCheckOptions
+            {
+                Predicate = _ => false
+            })
+        .AllowAnonymous();
 
-    app.MapHealthChecks("/health/ready", new HealthCheckOptions
-    {
-        Predicate = registration => registration.Tags.Contains("ready")
-    }).AllowAnonymous();
+    app.MapHealthChecks(
+            "/health/ready",
+            new HealthCheckOptions
+            {
+                Predicate = registration =>
+                    registration.Tags.Contains("ready")
+            })
+        .AllowAnonymous();
 
-    var hangfireSettings = app.Services.GetRequiredService<IOptions<HangfireSettings>>().Value;
-    if (!isBuildTimeOpenApiGeneration && hangfireSettings.Enabled && hangfireSettings.Dashboard.Enabled)
+    var hangfireSettings =
+        app.Services.GetRequiredService<IOptions<HangfireSettings>>().Value;
+
+    if (!isBuildTimeOpenApiGeneration &&
+        hangfireSettings.Enabled &&
+        hangfireSettings.Dashboard.Enabled)
     {
-        app.UseHangfireDashboard(hangfireSettings.Dashboard.Path, new DashboardOptions
-        {
-            Authorization = [app.Services.GetRequiredService<HangfireDashboardAuthorizationFilter>()],
-            IsReadOnlyFunc = _ => hangfireSettings.Dashboard.ReadOnly
-        });
+        app.UseHangfireDashboard(
+            hangfireSettings.Dashboard.Path,
+            new DashboardOptions
+            {
+                Authorization =
+                [
+                    app.Services.GetRequiredService<
+                        HangfireDashboardAuthorizationFilter>()
+                ],
+                IsReadOnlyFunc = _ =>
+                    hangfireSettings.Dashboard.ReadOnly
+            });
     }
 
     var versionSet = app.NewApiVersionSet()
