@@ -13,10 +13,11 @@ public class DeactivateUserEndpoint : ICarterModule
             return Results.NoContent();
         })
         .HasApiVersion(1)
+        .HasApiVersion(2)
         .WithName(nameof(DeactivateUserEndpoint))
         .WithTags("Users")
         .WithSummary("Deactivate a user")
-        .WithDescription("Deactivates a user by setting their lockout end date to max value. Admin users cannot be deactivated.")
+        .WithDescription("Administratively deactivates a user and revokes all active sessions. Identity lockout remains reserved for authentication security.")
         .Produces(StatusCodes.Status204NoContent)
         .ProducesProblem(StatusCodes.Status404NotFound)
         .ProducesProblem(StatusCodes.Status400BadRequest)
