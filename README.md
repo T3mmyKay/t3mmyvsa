@@ -172,11 +172,30 @@ Use `/health/ready` for deployment/load-balancer readiness and `/health/live` fo
 
 ## CLI Tooling
 
+The project template no longer installs or updates a global CLI automatically. Install the companion tool explicitly:
+
 ```bash
 dotnet tool install -g T3mmyvsa.CLI
-dotnet t3mmyvsa make:entity YourEntityName
-dotnet t3mmyvsa make:feature YourEntityName
 ```
+
+Create an auditable entity and full CRUD slices:
+
+```bash
+dotnet t3mmyvsa make:entity Product
+dotnet t3mmyvsa make:feature Product
+```
+
+Useful options:
+
+```bash
+# Generate BaseEntity instead of the default AuditableEntity
+dotnet t3mmyvsa make:entity LookupValue --base
+
+# Explicitly replace previously generated feature files
+dotnet t3mmyvsa make:feature Product --force
+```
+
+The CLI uses `Guid` identifiers, FluentValidation, granular View/Create/Update/Delete permissions, bounded pagination, deterministic sorting, ProblemDetails-compatible exceptions, cancellation propagation and both API versions exposed by the starter. It refuses unsafe names, avoids exposing navigation graphs automatically, and does not overwrite an existing feature set without `--force`.
 
 ## Updating a locally installed template
 

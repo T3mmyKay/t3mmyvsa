@@ -39,14 +39,4 @@ public enum AppPermission
 
     [Description("Users.Activate")]
     UsersActivate,
-
-
-    [Description("NamespaceTests.View")]
-    NamespaceTestsView,
-
-    [Description("NamespaceTests.Create")]
-    NamespaceTestsCreate,
-
-    [Description("NamespaceTests.Update")]
-    NamespaceTestsUpdate,
 }

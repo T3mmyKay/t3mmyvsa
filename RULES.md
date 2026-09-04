@@ -7,30 +7,40 @@
 - **Components**: Each feature slice should be self-contained and typically includes:
     - **Endpoint**: `ICarterModule` implementation for route definition.
     - **Handler**: `ICommandHandler` or `IQueryHandler` for business logic.
-    - **Command/Query**: Record types defining the input.
-    - **Validator**: `AbstractValidator<T>` using FluentValidation for input validation.
+    - **Command/Query**: Types defining application input.
+    - **Validator**: `AbstractValidator<T>` using FluentValidation for endpoint input validation.
     - **Response**: DTOs for output (e.g., `UserResponse`).
 - **Exceptions**: Cross-cutting concerns and shared infrastructure (Identity, generic Services) reside in `T3mmyvsa.Web` root folders.
 
 ## 2. File Organization
 
 - **One Class Per File**: Every class, interface, enum, or struct must reside in its own separate file.
-- **File Naming**: Check that file names exactly match the type name they contain.
-- **Constructors**: Use **Primary Constructors** for class definitions where dependency injection is used.
+- **File Naming**: File names must match the primary type they contain.
+- **Constructors**: Use primary constructors for class definitions where dependency injection is used.
 
 ## 3. CLI Tools & Scaffolding
 
-Use the **T3mmyvsa CLI** to maintain consistency and speed up development.
+Use the **T3mmyvsa CLI** to create the initial mechanical slice, then add business/resource rules deliberately.
 
-- `dotnet t3mmyvsa make:entity <EntityName>` creates the entity, configuration and `DbSet`.
-- `dotnet t3mmyvsa make:feature <EntityName>` scaffolds CRUD vertical slices and required permissions.
+- `dotnet t3mmyvsa make:entity <EntityName>` creates an `AuditableEntity` by default, its EF configuration and `DbSet`.
+- `dotnet t3mmyvsa make:entity <EntityName> --base` is reserved for entities that intentionally do not need audit timestamps.
+- `dotnet t3mmyvsa make:feature <EntityName>` scaffolds Create/Update/Delete/Get/GetList/BulkDelete slices and `View/Create/Update/Delete` permissions.
+- Generated entity identifiers are `Guid` because `BaseEntity.Id` is a version-7 GUID.
+- Generated list contracts derive from `PaginationRequest`, enforce `per_page <= 100`, propagate cancellation and use deterministic secondary ordering.
+- Optional navigation properties/collections are not exposed automatically in transport contracts. Required navigation properties stop generic scaffolding so the relationship can be modeled explicitly.
+- Existing generated feature files are not overwritten by default. `--force` is explicit destructive replacement and must not be used casually on hand-edited slices.
+- Entity names must be valid PascalCase C# identifiers. Adjust irregular English plurals manually after generation when required.
+- The project template must not silently install/update a global CLI version.
 
 ## 4. Coding Style & Standards
 
 - **Object Initialization**: Use simplified object initialization.
+- **Identifiers**: Domain `BaseEntity` identifiers are `Guid`; do not regress generated or handwritten slices to string IDs.
 - **Pagination**: Use `PaginatedResponse<T>` for list endpoints and enforce bounded page sizes.
 - **Query Parameters**: Use `[AsParameters]` in endpoints to bind query objects. Keep HTTP binding metadata on query properties rather than positional constructor parameters.
-- **Result Pattern**: Mutations should return the established feature response contract.
+- **List Reads**: Use `AsNoTracking()`, deterministic ordering, cancellation tokens and the actual request path when building pagination links.
+- **Result Pattern**: Generic CRUD mutations use `ResultResponse`; domain-specific mutations may return a more expressive feature response when needed.
+- **API Versions**: Shared endpoints currently intended for both public API versions should declare both `.HasApiVersion(1)` and `.HasApiVersion(2)`.
 
 ## 5. Interfaces
 
@@ -41,16 +51,18 @@ Use the **T3mmyvsa CLI** to maintain consistency and speed up development.
 
 - **RBAC**: Use ASP.NET Core Identity Roles.
 - **Permissions**: Define granular permissions in `Authorization/Enums/AppPermission.cs`.
+- **CRUD Permissions**: Generic CRUD uses separate `View`, `Create`, `Update`, and `Delete` permissions. Never reuse Create as a surrogate for Delete.
 - **Endpoint Security**: Use `.HasPermissions(AppPermission.X)` on protected Carter endpoints.
 - **Resource Authorization**: Handlers still enforce ownership/resource rules when endpoint permissions are insufficient.
 - **Handler-Level Denial**: Throw `ForbiddenException` when an authenticated caller fails a handler-level authorization check.
 
 ## 7. Validation & Error Handling
 
-- **Feature Validation**: Commands and queries use FluentValidation `AbstractValidator<T>`; do not add DataAnnotations validation attributes to feature contracts.
-- **Single Validation Path**: Shared endpoint validation handles request validation. Handlers retain only defensive domain invariants.
+- **Feature Validation**: Endpoint-bound commands/queries/requests use FluentValidation `AbstractValidator<T>`; do not add DataAnnotations validation attributes to feature contracts.
+- **Single Validation Path**: Shared endpoint validation handles transport validation. Handlers retain defensive domain invariants for inputs that can also arrive from non-HTTP callers.
 - **Thin Endpoints**: Do not add repetitive `try/catch` HTTP translation.
 - **ProblemDetails**: `GlobalExceptionHandler` is the authoritative exception-to-HTTP mapping.
+- **Invalid Request Shape/Route Contract**: `ArgumentException` for defensive route/body mismatch or invalid application input that escaped endpoint validation.
 - **Missing Resources**: `KeyNotFoundException`.
 - **State Conflicts**: `ConflictException`.
 - **Authentication Failures**: `UnauthorizedAccessException` only for authentication failures.
@@ -86,10 +98,11 @@ Use the **T3mmyvsa CLI** to maintain consistency and speed up development.
 
 ## 12. Entity & Data Configuration
 
-- **Base Entities**: Inherit from `BaseEntity` or `AuditableEntity`.
+- **Base Entities**: Prefer `AuditableEntity` for normal business records; use `BaseEntity` when audit timestamps are intentionally unnecessary.
 - **IDs**: Use `Guid.CreateVersion7()` for time-ordered UUIDs.
 - **Configuration**: `IEntityTypeConfiguration<T>` in `Data/Configurations/`.
 - **Auditing**: Handled automatically via `AuditInterceptor`.
+- **Navigation Input**: Do not bind EF navigation graphs directly from generic create/update API contracts. Model scalar foreign keys/value contracts explicitly.
 
 ## 13. HTTP & Deployment Security
 

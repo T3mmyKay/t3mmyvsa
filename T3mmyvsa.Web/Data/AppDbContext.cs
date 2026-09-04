@@ -7,7 +7,6 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : IdentityDbCo
 {
     public DbSet<AuditLog> AuditLogs { get; set; }
     public DbSet<AuthSession> AuthSessions { get; set; }
-    public DbSet<NamespaceTest> NamespaceTests { get; set; }
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
