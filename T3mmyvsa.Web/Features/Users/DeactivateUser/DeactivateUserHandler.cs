@@ -1,5 +1,6 @@
 using T3mmyvsa.Authorization.Enums;
 using T3mmyvsa.Entities;
+using T3mmyvsa.Exceptions;
 using T3mmyvsa.Interfaces;
 
 namespace T3mmyvsa.Features.Users.DeactivateUser;
@@ -15,7 +16,7 @@ public class DeactivateUserHandler(UserManager<User> userManager, IAuthSessionSe
         var roles = await userManager.GetRolesAsync(user);
         if (roles.Contains(AppRole.Admin.ToString(), StringComparer.OrdinalIgnoreCase))
         {
-            throw new InvalidOperationException("Admin users cannot be deactivated.");
+            throw new ConflictException("Admin users cannot be deactivated.");
         }
 
         if (!user.IsActive)

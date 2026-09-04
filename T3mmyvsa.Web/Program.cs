@@ -1,4 +1,6 @@
 using System.Reflection;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
 using Scalar.AspNetCore;
 using Serilog;
 using Serilog.Exceptions;
@@ -64,7 +66,30 @@ try
 
     var app = builder.Build();
 
-    app.UseStatusCodePages();
+    app.UseStatusCodePages(async statusCodeContext =>
+    {
+        var httpContext = statusCodeContext.HttpContext;
+        var problemDetailsService = httpContext.RequestServices.GetRequiredService<IProblemDetailsService>();
+        var statusCode = httpContext.Response.StatusCode;
+
+        await problemDetailsService.TryWriteAsync(new ProblemDetailsContext
+        {
+            HttpContext = httpContext,
+            ProblemDetails = new ProblemDetails
+            {
+                Status = statusCode,
+                Title = statusCode switch
+                {
+                    StatusCodes.Status400BadRequest => "Bad Request",
+                    StatusCodes.Status401Unauthorized => "Unauthorized",
+                    StatusCodes.Status403Forbidden => "Forbidden",
+                    StatusCodes.Status404NotFound => "Not Found",
+                    StatusCodes.Status409Conflict => "Conflict",
+                    _ => "Request Failed"
+                }
+            }
+        });
+    });
     app.UseExceptionHandler();
 
     app.UseHttpsRedirection();

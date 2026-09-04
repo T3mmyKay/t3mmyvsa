@@ -7,12 +7,13 @@ public class CreateUserEndpoint : ICarterModule
 {
     public void AddRoutes(IEndpointRouteBuilder app)
     {
-        app.MapPost("users", async (CreateUserCommand command, IMediator mediator, CancellationToken ct) =>
+        app.MapPost("users", async ([FromBody] CreateUserCommand command, IMediator mediator, CancellationToken ct) =>
         {
             var result = await mediator.SendCommandAsync<CreateUserCommand, string>(command, ct);
             return Results.Created($"/api/users/{result}", result);
         })
         .HasApiVersion(1)
+        .HasApiVersion(2)
         .WithName(nameof(CreateUserEndpoint))
         .WithTags("Users")
         .WithSummary("Create a new user")
@@ -21,6 +22,7 @@ public class CreateUserEndpoint : ICarterModule
         .ProducesProblem(StatusCodes.Status400BadRequest)
         .ProducesProblem(StatusCodes.Status401Unauthorized)
         .ProducesProblem(StatusCodes.Status403Forbidden)
+        .ProducesProblem(StatusCodes.Status409Conflict)
         .HasPermissions(AppPermission.UsersCreate, AppPermission.UsersManageRoles);
     }
 }

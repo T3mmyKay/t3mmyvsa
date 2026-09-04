@@ -9,15 +9,20 @@ public class UpdateUserEndpoint : ICarterModule
     {
         app.MapPut("users/{id:guid}", async (Guid id, [FromBody] UpdateUserCommand command, IMediator mediator, CancellationToken ct) =>
         {
-            if (id != command.UserId) return Results.BadRequest("Mismatched ID.");
+            if (id != command.UserId)
+            {
+                throw new BadHttpRequestException("Route ID does not match command ID.");
+            }
+
             await mediator.SendCommandAsync(command, ct);
             return Results.NoContent();
         })
         .HasApiVersion(1)
+        .HasApiVersion(2)
         .WithName(nameof(UpdateUserEndpoint))
         .WithTags("Users")
         .WithSummary("Update a user")
-        .WithDescription("Updates a user's profile and roles. Requires admin permissions. Note: 'Roles' expects a list of Role Names (e.g., 'Admin', 'User'), not IDs.")
+        .WithDescription("Updates a user's profile fields. Role assignment is managed through the dedicated role-assignment endpoint.")
         .Produces(StatusCodes.Status204NoContent)
         .ProducesProblem(StatusCodes.Status404NotFound)
         .ProducesProblem(StatusCodes.Status400BadRequest)
@@ -26,5 +31,3 @@ public class UpdateUserEndpoint : ICarterModule
         .HasPermissions(AppPermission.UsersUpdate);
     }
 }
-
-

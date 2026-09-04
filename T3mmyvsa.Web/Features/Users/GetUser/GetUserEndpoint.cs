@@ -10,12 +10,8 @@ public class GetUserEndpoint : ICarterModule
     {
         app.MapGet("users/{id}", async (string id, IMediator mediator, CancellationToken ct) =>
         {
-            var response = await mediator.SendQueryAsync<GetUserQuery, UserResponse?>(new GetUserQuery(id), ct);
-
-            if (response is null)
-            {
-                return Results.NotFound("User not found.");
-            }
+            var response = await mediator.SendQueryAsync<GetUserQuery, UserResponse?>(new GetUserQuery(id), ct)
+                ?? throw new KeyNotFoundException("User not found.");
 
             return Results.Ok(response);
         })

@@ -23,6 +23,7 @@ public class RemoveUserRoleEndpoint : ICarterModule
         .ProducesProblem(StatusCodes.Status401Unauthorized)
         .ProducesProblem(StatusCodes.Status403Forbidden)
         .ProducesProblem(StatusCodes.Status404NotFound)
+        .ProducesProblem(StatusCodes.Status409Conflict)
         .HasPermissions(AppPermission.UsersManageRoles);
     }
 }

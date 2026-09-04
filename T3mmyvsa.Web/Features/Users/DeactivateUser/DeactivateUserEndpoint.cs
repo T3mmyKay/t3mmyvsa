@@ -23,6 +23,7 @@ public class DeactivateUserEndpoint : ICarterModule
         .ProducesProblem(StatusCodes.Status400BadRequest)
         .ProducesProblem(StatusCodes.Status401Unauthorized)
         .ProducesProblem(StatusCodes.Status403Forbidden)
+        .ProducesProblem(StatusCodes.Status409Conflict)
         .HasPermissions(AppPermission.UsersDeactivate);
     }
 }

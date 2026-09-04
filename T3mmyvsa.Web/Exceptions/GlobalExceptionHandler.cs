@@ -1,20 +1,30 @@
 using FluentValidation;
 using Microsoft.AspNetCore.Diagnostics;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 namespace T3mmyvsa.Exceptions;
 
-public sealed class GlobalExceptionHandler(ILogger<GlobalExceptionHandler> logger) : IExceptionHandler
+public sealed class GlobalExceptionHandler(
+    ILogger<GlobalExceptionHandler> logger,
+    IProblemDetailsService problemDetailsService) : IExceptionHandler
 {
     public async ValueTask<bool> TryHandleAsync(
         HttpContext httpContext,
         Exception exception,
         CancellationToken cancellationToken)
     {
+        if (exception is OperationCanceledException && httpContext.RequestAborted.IsCancellationRequested)
+        {
+            return false;
+        }
+
         var (statusCode, title) = exception switch
         {
             ForbiddenException => (StatusCodes.Status403Forbidden, "Forbidden"),
             ConflictException => (StatusCodes.Status409Conflict, "Conflict"),
+            DbUpdateConcurrencyException => (StatusCodes.Status409Conflict, "Conflict"),
             KeyNotFoundException => (StatusCodes.Status404NotFound, "Not Found"),
             UnauthorizedAccessException => (StatusCodes.Status401Unauthorized, "Unauthorized"),
             ValidationException => (StatusCodes.Status400BadRequest, "Validation Failed"),
@@ -30,8 +40,15 @@ public sealed class GlobalExceptionHandler(ILogger<GlobalExceptionHandler> logge
         }
         else
         {
-            logger.LogWarning(exception, "Request failed with status {StatusCode} for {Method} {Path}", statusCode, httpContext.Request.Method, httpContext.Request.Path);
+            logger.LogWarning(
+                exception,
+                "Request failed with status {StatusCode} for {Method} {Path}",
+                statusCode,
+                httpContext.Request.Method,
+                httpContext.Request.Path);
         }
+
+        httpContext.Response.StatusCode = statusCode;
 
         var problem = new ProblemDetails
         {
@@ -39,11 +56,8 @@ public sealed class GlobalExceptionHandler(ILogger<GlobalExceptionHandler> logge
             Title = title,
             Detail = statusCode >= StatusCodes.Status500InternalServerError
                 ? "An unexpected error occurred."
-                : exception.Message,
-            Instance = $"{httpContext.Request.Method} {httpContext.Request.Path}"
+                : exception.Message
         };
-
-        problem.Extensions["requestId"] = httpContext.TraceIdentifier;
 
         if (exception is ValidationException validationException)
         {
@@ -54,8 +68,11 @@ public sealed class GlobalExceptionHandler(ILogger<GlobalExceptionHandler> logge
                     group => group.Select(error => error.ErrorMessage).Distinct().ToArray());
         }
 
-        httpContext.Response.StatusCode = statusCode;
-        await httpContext.Response.WriteAsJsonAsync(problem, cancellationToken);
-        return true;
+        return await problemDetailsService.TryWriteAsync(new ProblemDetailsContext
+        {
+            HttpContext = httpContext,
+            Exception = exception,
+            ProblemDetails = problem
+        });
     }
 }

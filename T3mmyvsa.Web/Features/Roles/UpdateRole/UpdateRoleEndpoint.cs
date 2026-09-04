@@ -7,7 +7,7 @@ public class UpdateRoleEndpoint : ICarterModule
 {
     public void AddRoutes(IEndpointRouteBuilder app)
     {
-        app.MapPut("roles/{id}", async (string id, [FromBody] UpdateRoleCommand command, IMediator mediator, CancellationToken ct) =>
+        app.MapPut("roles/{id:guid}", async (string id, [FromBody] UpdateRoleCommand command, IMediator mediator, CancellationToken ct) =>
         {
             if (!string.Equals(id, command.Id, StringComparison.Ordinal))
             {
