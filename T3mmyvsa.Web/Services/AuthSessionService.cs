@@ -21,7 +21,7 @@ public sealed class AuthSessionService(
 
     public async Task<AuthTokenPair> CreateSessionAsync(User user, CancellationToken cancellationToken = default)
     {
-        if (await userManager.IsLockedOutAsync(user))
+        if (!user.IsActive || await userManager.IsLockedOutAsync(user))
         {
             throw new UnauthorizedAccessException("This account is not active.");
         }
@@ -50,7 +50,6 @@ public sealed class AuthSessionService(
 
         if (current.RevokedAt is not null)
         {
-            // Reusing a rotated/revoked refresh token is treated as credential theft.
             await RevokeAllSessionsInternalAsync(current.UserId, now, cancellationToken);
             throw new UnauthorizedAccessException("Refresh token reuse detected; all sessions were revoked.");
         }
@@ -67,7 +66,7 @@ public sealed class AuthSessionService(
 
         var user = await userManager.FindByIdAsync(current.UserId)
             ?? throw new UnauthorizedAccessException("User no longer exists.");
-        if (await userManager.IsLockedOutAsync(user))
+        if (!user.IsActive || await userManager.IsLockedOutAsync(user))
         {
             await RevokeAllSessionsInternalAsync(user.Id, now, cancellationToken);
             throw new UnauthorizedAccessException("This account is not active.");
@@ -77,9 +76,6 @@ public sealed class AuthSessionService(
         var replacement = CreateSession(user.Id, newRefreshToken, now);
         var rotated = 0;
 
-        // Rotation must be single-use even when two requests race with the same token.
-        // Revocation and replacement insertion are atomic. The conditional update ensures
-        // exactly one contender wins; a loser is treated as refresh-token reuse.
         await using (var transaction = await db.Database.BeginTransactionAsync(cancellationToken))
         {
             rotated = await db.AuthSessions
@@ -105,8 +101,6 @@ public sealed class AuthSessionService(
 
         if (rotated != 1)
         {
-            // The winning transaction has completed before this executes, so any replacement
-            // session it created is visible and is revoked as part of replay containment.
             await RevokeAllSessionsInternalAsync(user.Id, now, cancellationToken);
             throw new UnauthorizedAccessException("Refresh token reuse detected; all sessions were revoked.");
         }
@@ -132,7 +126,7 @@ public sealed class AuthSessionService(
         }
 
         var user = await userManager.FindByIdAsync(userId);
-        return user is not null && !await userManager.IsLockedOutAsync(user);
+        return user is not null && user.IsActive && !await userManager.IsLockedOutAsync(user);
     }
 
     public async Task RevokeSessionAsync(string userId, Guid sessionId, CancellationToken cancellationToken = default)
