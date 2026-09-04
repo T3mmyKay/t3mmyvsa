@@ -1,0 +1,17 @@
+**/bin/
+**/obj/
+.git/
+.github/
+.template.config/
+.vs/
+.idea/
+.vscode/
+Logs/
+artifacts/
+*.nupkg
+*.snupkg
+.env
+.env.*
+docker/env/
+docs/
+README.md

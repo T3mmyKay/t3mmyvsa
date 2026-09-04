@@ -94,6 +94,11 @@ jobs:
           ConnectionStrings__appDatabase: "Server=localhost;Database=T3mmyVsaSmoke;User Id=sa;Password=SmokeOnly_Password123!;TrustServerCertificate=True"
           JwtSettings__Secret: "SmokeOnlyJwtSigningSecret_ChangeMe_1234567890"
           Hangfire__Enabled: "false"
+          JWT_SECRET: "SmokeOnlyDockerJwtSigningSecret_1234567890"
+          POSTGRES_PASSWORD: "smoke-postgres"
+          MSSQL_SA_PASSWORD: "SmokeOnlySqlServer_Password123!"
+          MYSQL_PASSWORD: "smoke-mysql"
+          MYSQL_ROOT_PASSWORD: "smoke-mysql-root"
         run: |
           set -euo pipefail
           TOOL_DIR="$RUNNER_TEMP/t3mmyvsa-tool"
@@ -103,6 +108,10 @@ jobs:
             --tool-path "$TOOL_DIR" \
             --add-source artifacts/packages \
             --version "$VERSION"
+          dotnet tool install dotnet-ef \
+            --tool-path "$TOOL_DIR" \
+            --version "10.0.11"
+          export PATH="$TOOL_DIR:$PATH"
 
           dotnet new install "artifacts/packages/T3mmy.VSA.Templates.${VERSION}.nupkg"
           dotnet new t3mmyvsa -n PackageSmoke -o "$APP_DIR"
@@ -111,6 +120,16 @@ jobs:
           "$TOOL_DIR/t3mmyvsa" make:entity SmokeProduct
           "$TOOL_DIR/t3mmyvsa" make:feature SmokeProduct
           dotnet build -c Release
+
+          cp .env.example .env
+          bash docker/create-migration.sh PackageSmokeInitial
+
+          for env_file in .env.example docker/env/*.env.example; do
+            docker compose --env-file "$env_file" config --quiet
+          done
+
+          docker build --target migrations --tag t3mmyvsa-migrations-smoke:local .
+          docker build --target final --tag t3mmyvsa-api-smoke:local .
 
       - name: Validate publishing credentials
         if: ${{ github.event_name == 'release' || inputs.publish }}

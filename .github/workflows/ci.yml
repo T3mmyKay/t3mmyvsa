@@ -23,6 +23,21 @@ jobs:
             exit 1
           fi
 
+      - name: Validate Docker Compose examples
+        working-directory: T3mmyvsa.Web
+        shell: bash
+        env:
+          JWT_SECRET: "CiOnlyDockerValidationSecret_1234567890"
+          POSTGRES_PASSWORD: "ci-postgres"
+          MSSQL_SA_PASSWORD: "CiOnlySqlServer_Password123!"
+          MYSQL_PASSWORD: "ci-mysql"
+          MYSQL_ROOT_PASSWORD: "ci-mysql-root"
+        run: |
+          set -euo pipefail
+          for env_file in .env.example docker/env/*.env.example; do
+            docker compose --env-file "$env_file" config --quiet
+          done
+
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
