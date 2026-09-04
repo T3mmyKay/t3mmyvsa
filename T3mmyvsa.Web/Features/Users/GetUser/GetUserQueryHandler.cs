@@ -16,6 +16,7 @@ public class GetUserQueryHandler(UserManager<User> userManager, IUserPermissionS
         }
 
         var roles = await userManager.GetRolesAsync(user);
+        var roleList = roles.OrderBy(x => x, StringComparer.OrdinalIgnoreCase).ToList();
         var permissions = await userPermissionService.GetPermissionsAsync(user.Id, cancellationToken);
 
         return new UserResponse(
@@ -24,7 +25,12 @@ public class GetUserQueryHandler(UserManager<User> userManager, IUserPermissionS
             user.Email,
             user.FirstName,
             user.LastName,
-            [.. roles],
+            user.PhoneNumber,
+            roleList.FirstOrDefault(),
+            user.IsActive,
+            user.EmailConfirmed,
+            user.CreatedAt,
+            roleList,
             [.. permissions.OrderBy(x => x, StringComparer.OrdinalIgnoreCase)]);
     }
 }
