@@ -16,85 +16,73 @@
 
 - **One Class Per File**: Every class, interface, enum, or struct must reside in its own separate file.
 - **File Naming**: Check that file names exactly match the type name they contain.
-- **Constructors**: Use **Primary Constructors** for all class definitions where dependency injection is used.
+- **Constructors**: Use **Primary Constructors** for class definitions where dependency injection is used.
 
 ## 3. CLI Tools & Scaffolding
 
 Use the **T3mmyvsa CLI** to maintain consistency and speed up development.
 
-- **Make Entity**:
-  ```bash
-  dotnet t3mmyvsa make:entity <EntityName>
-  ```
-  - Creates Entity in `Entities/`.
-  - Creates Configuration in `Data/Configurations/`.
-  - Updates `AppDbContext` to include the `DbSet`.
-
-- **Make Feature**:
-  ```bash
-  dotnet t3mmyvsa make:feature <EntityName>
-  ```
-  - Scaffolds a complete CRUD set in `Features/<EntityName>s/`.
-  - Generates: `Create`, `Update`, `Delete`, `Get`, `GetList`, `BulkDelete`.
-  - Automatically adds permissions to `AppPermission.cs`.
+- `dotnet t3mmyvsa make:entity <EntityName>` creates the entity, configuration and `DbSet`.
+- `dotnet t3mmyvsa make:feature <EntityName>` scaffolds CRUD vertical slices and required permissions.
 
 ## 4. Coding Style & Standards
 
-- **Object Initialization**: Use **simplified object initialization** (e.g., `new T { Prop = val }`).
-- **Pagination**: Use `PaginatedResponse<T>` for all list endpoints and enforce bounded page sizes.
+- **Object Initialization**: Use simplified object initialization.
+- **Pagination**: Use `PaginatedResponse<T>` for list endpoints and enforce bounded page sizes.
 - **Query Parameters**: Use `[AsParameters]` in endpoints to bind query objects. Keep HTTP binding metadata on query properties rather than positional constructor parameters.
-- **Result Pattern**: Mutations (Create/Update/Delete) should return `ResultResponse`.
+- **Result Pattern**: Mutations should return the established feature response contract.
 
 ## 5. Interfaces
 
-- **Location**: Interfaces for shared services must be in `Interfaces` folder.
-- **Naming**: Interface names must be prefixed with `I` (e.g., `IEmailService`).
+- **Location**: Interfaces for shared services belong in `Interfaces`.
+- **Naming**: Interface names are prefixed with `I`.
 
 ## 6. Authorization & Identity
 
 - **RBAC**: Use ASP.NET Core Identity Roles.
-- **Permissions**: Defined in `Authorization/Enums/AppPermission.cs`.
-- **Endpoint Security**: Use `.HasPermissions(AppPermission.X)` extension on Carter endpoints.
-- **Resource Authorization**: Handlers must still enforce ownership/resource rules when endpoint permissions alone are insufficient.
+- **Permissions**: Define granular permissions in `Authorization/Enums/AppPermission.cs`.
+- **Endpoint Security**: Use `.HasPermissions(AppPermission.X)` on protected Carter endpoints.
+- **Resource Authorization**: Handlers still enforce ownership/resource rules when endpoint permissions are insufficient.
 - **Handler-Level Denial**: Throw `ForbiddenException` when an authenticated caller fails a handler-level authorization check.
 
 ## 7. Validation & Error Handling
 
-- **Feature Validation**: Commands and queries use FluentValidation `AbstractValidator<T>`. Do not put DataAnnotations validation attributes on feature command/query contracts.
-- **Single Validation Path**: Validation is performed by the shared endpoint validation filter; do not duplicate the same validation in endpoint lambdas and handlers unless enforcing a defensive domain invariant.
-- **Thin Endpoints**: Do not add repetitive `try/catch` blocks to translate handler exceptions into HTTP results.
-- **ProblemDetails**: `GlobalExceptionHandler` is the authoritative exception-to-HTTP mapping and all error responses should use ProblemDetails.
-- **Missing Resources**: Throw `KeyNotFoundException` when an expected resource does not exist.
-- **State Conflicts**: Throw `ConflictException` for duplicate resources or operations that violate the current resource state/invariant.
-- **Authentication Failures**: Throw `UnauthorizedAccessException` for authentication failures. Do not use it for authenticated authorization denial.
-- **Unexpected Failures**: Never expose internal exception details for 5xx responses.
+- **Feature Validation**: Commands and queries use FluentValidation `AbstractValidator<T>`; do not add DataAnnotations validation attributes to feature contracts.
+- **Single Validation Path**: Shared endpoint validation handles request validation. Handlers retain only defensive domain invariants.
+- **Thin Endpoints**: Do not add repetitive `try/catch` HTTP translation.
+- **ProblemDetails**: `GlobalExceptionHandler` is the authoritative exception-to-HTTP mapping.
+- **Missing Resources**: `KeyNotFoundException`.
+- **State Conflicts**: `ConflictException`.
+- **Authentication Failures**: `UnauthorizedAccessException` only for authentication failures.
+- **Unexpected Failures**: Never expose internal exception details in 5xx responses.
 
 ## 8. Auditing
 
-- **Actor Identity**: Audit actor IDs must use the Identity `NameIdentifier`/user ID, never username or email.
-- **Sensitive Values**: Never audit password hashes, tokens, secrets, credentials, security stamps, concurrency stamps, API keys, or private keys.
+- **Actor Identity**: Use Identity `NameIdentifier`/user ID, never username or email.
+- **Sensitive Values**: Never audit password hashes, tokens, secrets, credentials, security/concurrency stamps, API keys or private keys.
 - **Explicit Exclusion**: Mark custom sensitive entity properties with `[AuditIgnore]`.
-- **Identity Changes**: Audit safe user/profile state, role assignment, user permission claims, role changes, and role permission claims.
-- **Activity Lists**: Audit/activity list endpoints must be paginated and ordered deterministically.
+- **Identity Changes**: Audit safe user/profile state, role assignment, user permission claims, role changes and role permission claims.
+- **Activity Lists**: Paginate and order deterministically.
 
 ## 9. Logging
 
-- **Serilog**: Mandatory configuration.
-- **Sinks**: Console and File sinks required.
+- **Serilog**: Mandatory structured logging.
+- **Sinks**: Console and file sinks are configured by default.
 - **Enrichment**: Use `FromLogContext`.
+- **Secrets**: Never log passwords, refresh tokens, JWT signing keys, connection strings or dashboard credentials.
 
 ## 10. Dependency Injection
 
 - **Scrutor**: Used for automatic service registration.
-- **Lifetimes**:
-  - `[ScopedService]`, `[SingletonService]`, `[TransientService]` attributes.
-  - Default: Classes ending in "Service" are **Transient** if no attribute is present.
+- **Lifetimes**: `[ScopedService]`, `[SingletonService]`, `[TransientService]`; otherwise service naming conventions apply.
 
 ## 11. Configuration & Options
 
-- **Options Pattern**: Use `services.Configure<T>()`.
 - **Settings Classes**: Located in `Configuration/`, named `*Settings`.
-- **Injection**: Inject via `IOptions<T>`.
+- **Injection**: Inject through `IOptions<T>` where runtime settings are required.
+- **Validation**: Security-sensitive settings use FluentValidation and `ValidateOnStart`.
+- **Secrets**: Never commit connection strings containing credentials, JWT secrets, SMTP passwords, bootstrap passwords, API keys or dashboard credentials. Use environment variables, user-secrets or the deployment secret store.
+- **Bootstrap Admin**: Disabled by default. Enable only for initial provisioning and disable after the administrator account exists.
 
 ## 12. Entity & Data Configuration
 
@@ -102,3 +90,25 @@ Use the **T3mmyvsa CLI** to maintain consistency and speed up development.
 - **IDs**: Use `Guid.CreateVersion7()` for time-ordered UUIDs.
 - **Configuration**: `IEntityTypeConfiguration<T>` in `Data/Configurations/`.
 - **Auditing**: Handled automatically via `AuditInterceptor`.
+
+## 13. HTTP & Deployment Security
+
+- **CORS**: Explicit origins only; wildcard origins are not accepted by the starter policy.
+- **Rate Limiting**: Public auth/recovery/token endpoints must retain their named rate-limit policies.
+- **Forwarded Headers**: Accept `X-Forwarded-*` only from configured trusted proxy addresses.
+- **Transport**: HSTS is enabled outside Development; reverse proxies must forward the original HTTPS scheme correctly.
+- **Hosts**: Production deployments must set `AllowedHosts` to the real hostnames.
+- **API Docs**: OpenAPI/Scalar are development-only unless explicitly enabled for a controlled production environment.
+- **Health**: Keep separate liveness and readiness probes; readiness may touch dependencies, liveness must not.
+- **Deployment TLS**: Never disable deployment certificate validation or use `-allowUntrusted` in production deployment tooling.
+
+## 14. Background Jobs
+
+- **Engine**: Hangfire with first-party SQL Server storage is the starter background-job foundation.
+- **Configuration**: Use `HangfireSettings`; do not add scheduler credentials to source control.
+- **Dashboard**: Disabled by default; when enabled it requires external credentials, HTTPS by default and is read-only by default. Prefer an IP allowlist or private network/VPN in production.
+- **Job Arguments**: Never serialize secrets, access tokens or unnecessary personal data into background-job arguments.
+- **Idempotency**: Jobs must tolerate retry/re-execution safely.
+- **Retries**: Keep retries bounded; override only when the use case justifies a different policy.
+- **Queues**: Use lowercase queue names and configure worker queues explicitly.
+- **Isolation**: `Hangfire:ServerEnabled=false` may be used on web nodes when a dedicated worker deployment processes jobs.

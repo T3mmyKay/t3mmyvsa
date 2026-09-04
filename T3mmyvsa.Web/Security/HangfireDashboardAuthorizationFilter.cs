@@ -26,14 +26,15 @@ public sealed class HangfireDashboardAuthorizationFilter(IOptions<HangfireSettin
 
         if (_settings.AllowedIpAddresses.Length > 0)
         {
-            var remoteIp = httpContext.Connection.RemoteIpAddress;
+            var remoteIp = Normalize(httpContext.Connection.RemoteIpAddress);
             if (remoteIp is null || !_settings.AllowedIpAddresses.Any(value =>
-                    IPAddress.TryParse(value, out var allowedIp) && allowedIp.Equals(remoteIp)))
+                    IPAddress.TryParse(value, out var allowedIp) && Normalize(allowedIp)?.Equals(remoteIp) == true))
             {
                 return false;
             }
         }
 
+        httpContext.Response.Headers["WWW-Authenticate"] = "Basic realm=\"Hangfire Dashboard\", charset=\"UTF-8\"";
         var authorization = httpContext.Request.Headers.Authorization.ToString();
         if (!authorization.StartsWith("Basic ", StringComparison.OrdinalIgnoreCase))
         {
@@ -58,6 +59,11 @@ public sealed class HangfireDashboardAuthorizationFilter(IOptions<HangfireSettin
         {
             return false;
         }
+    }
+
+    private static IPAddress? Normalize(IPAddress? address)
+    {
+        return address?.IsIPv4MappedToIPv6 == true ? address.MapToIPv4() : address;
     }
 
     private static bool FixedTimeEquals(string candidate, string? expected)

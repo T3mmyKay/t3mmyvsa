@@ -3,7 +3,7 @@ using Microsoft.Extensions.Diagnostics.HealthChecks;
 
 namespace T3mmyvsa.Health;
 
-public sealed class HangfireHealthCheck : IHealthCheck
+public sealed class HangfireHealthCheck(JobStorage jobStorage) : IHealthCheck
 {
     public Task<HealthCheckResult> CheckHealthAsync(
         HealthCheckContext context,
@@ -11,7 +11,7 @@ public sealed class HangfireHealthCheck : IHealthCheck
     {
         try
         {
-            var statistics = JobStorage.Current.GetMonitoringApi().GetStatistics();
+            var statistics = jobStorage.GetMonitoringApi().GetStatistics();
             return Task.FromResult(HealthCheckResult.Healthy(
                 $"Hangfire storage is reachable; {statistics.Servers} server(s) registered."));
         }

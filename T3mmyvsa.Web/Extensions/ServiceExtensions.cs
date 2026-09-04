@@ -264,7 +264,7 @@ public static class ServiceExtensions
                     });
             });
 
-            if (startServer)
+            if (startServer && settings.ServerEnabled)
             {
                 services.AddHangfireServer(options =>
                 {

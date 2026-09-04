@@ -3,6 +3,7 @@ namespace T3mmyvsa.Configuration;
 public sealed class HangfireSettings
 {
     public bool Enabled { get; set; } = true;
+    public bool ServerEnabled { get; set; } = true;
     public string ConnectionStringName { get; set; } = "sqlConnection";
     public string SchemaName { get; set; } = "HangFire";
     public int? WorkerCount { get; set; }
