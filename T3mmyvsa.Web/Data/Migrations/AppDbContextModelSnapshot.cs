@@ -134,6 +134,7 @@ namespace T3mmyvsa.Data.Migrations
                     b.Property<string>("Email").HasMaxLength(256).HasColumnType("nvarchar(256)");
                     b.Property<bool>("EmailConfirmed").HasColumnType("bit");
                     b.Property<string>("FirstName").HasColumnType("nvarchar(max)");
+                    b.Property<bool>("IsActive").HasColumnType("bit");
                     b.Property<string>("LastName").HasColumnType("nvarchar(max)");
                     b.Property<bool>("LockoutEnabled").HasColumnType("bit");
                     b.Property<DateTimeOffset?>("LockoutEnd").HasColumnType("datetimeoffset");
