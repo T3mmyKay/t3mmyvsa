@@ -1,7 +1,7 @@
 namespace T3mmyvsa.Features.Users.UpdateProfile;
 
 public record UpdateProfileCommand(
-    string? FirstName,
-    string? LastName,
+    [StringLength(100, MinimumLength = 2)] string? FirstName,
+    [StringLength(100, MinimumLength = 2)] string? LastName,
     [Phone] string? PhoneNumber
 ) : ICommand;
