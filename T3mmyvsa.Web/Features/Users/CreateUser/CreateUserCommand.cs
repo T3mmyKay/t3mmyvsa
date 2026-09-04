@@ -5,6 +5,6 @@ public record CreateUserCommand(
     [Required, StringLength(100, MinimumLength = 2)] string LastName,
     [Required, EmailAddress] string Email,
     [Required, Phone] string PhoneNumber,
-    [Required, StringLength(100, MinimumLength = 6)] string Password,
+    [Required, StringLength(100, MinimumLength = 10)] string Password,
     [Required] string Role
 ) : ICommand<string>;
