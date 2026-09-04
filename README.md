@@ -1,6 +1,6 @@
 # T3mmyVSA Template
 
-A reusable .NET 10 backend starter based on Vertical Slice Architecture with ASP.NET Core Identity, granular permissions, multi-provider EF Core persistence, FluentValidation, Serilog, Hangfire, health checks and hardened production defaults.
+A reusable .NET 10 backend starter based on Vertical Slice Architecture with ASP.NET Core Identity, granular permissions, multi-provider EF Core persistence, FluentValidation, Serilog, Hangfire, Docker, health checks and hardened production defaults.
 
 ## Architecture Highlights
 
@@ -12,6 +12,7 @@ A reusable .NET 10 backend starter based on Vertical Slice Architecture with ASP
 - **Validation**: FluentValidation
 - **Errors**: RFC-style ProblemDetails through one global exception pipeline
 - **Background Jobs**: Hangfire with SQL Server or PostgreSQL storage
+- **Containers**: Multi-stage Docker image + multi-provider Docker Compose development stack
 - **Logging**: Serilog structured logging
 - **API Documentation**: OpenAPI + Scalar in development; disabled in production unless explicitly enabled
 - **Health**: `/health/live` and `/health/ready`
@@ -26,13 +27,32 @@ A reusable .NET 10 backend starter based on Vertical Slice Architecture with ASP
   - PostgreSQL
   - MySQL
   - SQLite
+- Docker Desktop / Docker Engine when using the container workflow
 
 ### Install the template
 
 ```bash
-dotnet new install ./T3mmyvsa.Web
+dotnet new install T3mmy.VSA.Templates
 dotnet new t3mmyvsa -n YourProjectName
 ```
+
+### Docker quick start
+
+Generated projects include a `Dockerfile`, `compose.yaml`, `.env.example`, provider-specific Docker environment examples, and separate migration tooling.
+
+PostgreSQL is the default Docker development path:
+
+```bash
+cd YourProjectName
+cp .env.example .env
+# Set POSTGRES_PASSWORD and JWT_SECRET in .env.
+bash docker/create-migration.sh InitialCreate
+docker compose up --build
+```
+
+PowerShell users can run `pwsh -File docker/create-migration.ps1 -MigrationName InitialCreate` instead. The API binds to `127.0.0.1:8080` by default. SQL Server, MySQL and SQLite examples are documented in `docs/DOCKER.md` inside generated projects.
+
+The API container runs non-root with a read-only filesystem, while logs, SQLite data and ASP.NET Core Data Protection keys use explicit persistent volumes. The migration container applies migrations before API startup.
 
 ### Configure the database
 
@@ -244,6 +264,8 @@ The application database health check is EF-provider agnostic.
 ## Production Defaults
 
 - no embedded runtime credentials or signing secrets
+- non-root/read-only Docker runtime container
+- persistent Data Protection keys in the local Compose workflow
 - Kestrel server header disabled
 - HSTS outside Development
 - hardened security headers

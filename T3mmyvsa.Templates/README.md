@@ -31,6 +31,7 @@ dotnet new t3mmyvsa -n MyProject
 - Hangfire with SQL Server or PostgreSQL storage
 - health/readiness checks
 - hardened CORS, proxy, rate-limit and production configuration defaults
+- production-style Dockerfile and multi-provider Docker Compose development stack
 
 The generated project intentionally contains no pre-generated EF migrations. Select the database provider and connection string first, then run:
 
@@ -40,6 +41,27 @@ dotnet ef database update
 ```
 
 See `docs/DATABASE_PROVIDERS.md` in the generated project for provider aliases, migration rules and independent Hangfire storage configuration.
+
+## Docker
+
+The generated project includes:
+
+- a multi-stage .NET 10 Dockerfile;
+- a non-root/read-only API runtime container;
+- a dedicated EF migration target/job;
+- persistent Data Protection keys and logs;
+- PostgreSQL, SQL Server and MySQL Compose profiles;
+- SQLite volume support.
+
+PostgreSQL is the default Docker development profile. Start with:
+
+```bash
+cp .env.example .env
+# fill POSTGRES_PASSWORD and JWT_SECRET
+docker compose up --build
+```
+
+See `docs/DOCKER.md` in the generated project for all provider profiles and production guidance.
 
 ## CLI Tool
 

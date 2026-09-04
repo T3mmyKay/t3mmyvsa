@@ -1,0 +1,142 @@
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: final
+      args:
+        BUILD_CONFIGURATION: ${BUILD_CONFIGURATION:-Release}
+    restart: unless-stopped
+    init: true
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    ports:
+      - "127.0.0.1:${APP_PORT:-8080}:8080"
+    environment:
+      ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Development}
+      ASPNETCORE_HTTP_PORTS: "8080"
+      DatabaseSettings__Provider: ${DATABASE_PROVIDER:-postgresql}
+      DatabaseSettings__ConnectionStringName: appDatabase
+      ConnectionStrings__appDatabase: ${DATABASE_CONNECTION_STRING:?Set DATABASE_CONNECTION_STRING in .env}
+      JwtSettings__Secret: ${JWT_SECRET:?Set JWT_SECRET in .env}
+      AppSettings__AppUrl: ${APP_URL:-http://localhost:8080}
+      Hangfire__Enabled: ${HANGFIRE_ENABLED:-true}
+      Hangfire__ServerEnabled: ${HANGFIRE_SERVER_ENABLED:-true}
+      Hangfire__StorageProvider: ${HANGFIRE_STORAGE_PROVIDER:-inherit}
+      Hangfire__ConnectionStringName: ${HANGFIRE_CONNECTION_STRING_NAME:-}
+      ConnectionStrings__hangfireDatabase: ${HANGFIRE_CONNECTION_STRING:-}
+      BootstrapAdmin__Enabled: ${BOOTSTRAP_ADMIN_ENABLED:-false}
+      BootstrapAdmin__Email: ${BOOTSTRAP_ADMIN_EMAIL:-}
+      BootstrapAdmin__Password: ${BOOTSTRAP_ADMIN_PASSWORD:-}
+      MailSettings__Password: ${MAIL_PASSWORD:-}
+    volumes:
+      - app-logs:/app/Logs
+      - data-protection-keys:/home/app/.aspnet/DataProtection-Keys
+      - sqlite-data:/app/data
+    tmpfs:
+      - /tmp
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    networks:
+      - backend
+    stop_grace_period: 30s
+
+  migrate:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: migrations
+      args:
+        BUILD_CONFIGURATION: ${BUILD_CONFIGURATION:-Release}
+        DOTNET_EF_VERSION: ${DOTNET_EF_VERSION:-10.0.11}
+    restart: "no"
+    environment:
+      DatabaseSettings__Provider: ${DATABASE_PROVIDER:-postgresql}
+      DatabaseSettings__ConnectionStringName: appDatabase
+      ConnectionStrings__appDatabase: ${DATABASE_CONNECTION_STRING:?Set DATABASE_CONNECTION_STRING in .env}
+      MIGRATION_MAX_ATTEMPTS: ${MIGRATION_MAX_ATTEMPTS:-30}
+      MIGRATION_RETRY_DELAY_SECONDS: ${MIGRATION_RETRY_DELAY_SECONDS:-2}
+    volumes:
+      - sqlite-data:/app/data
+    networks:
+      - backend
+
+  postgres:
+    profiles: ["postgres"]
+    image: postgres:18-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-appdb}
+      POSTGRES_USER: ${POSTGRES_USER:-appuser}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-}
+    ports:
+      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+    networks:
+      - backend
+
+  sqlserver:
+    profiles: ["sqlserver"]
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    restart: unless-stopped
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_PID: Developer
+      MSSQL_SA_PASSWORD: ${MSSQL_SA_PASSWORD:-}
+    ports:
+      - "127.0.0.1:${SQLSERVER_PORT:-1433}:1433"
+    volumes:
+      - sqlserver-data:/var/opt/mssql
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P \"$${MSSQL_SA_PASSWORD}\" -C -Q \"SELECT 1\" >/dev/null 2>&1 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 20s
+    networks:
+      - backend
+
+  mysql:
+    profiles: ["mysql"]
+    image: mysql:8.4
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-appdb}
+      MYSQL_USER: ${MYSQL_USER:-appuser}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-}
+    ports:
+      - "127.0.0.1:${MYSQL_PORT:-3306}:3306"
+    volumes:
+      - mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -u root -p\"$${MYSQL_ROOT_PASSWORD}\" --silent"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 15s
+    networks:
+      - backend
+
+networks:
+  backend:
+    driver: bridge
+
+volumes:
+  app-logs:
+  data-protection-keys:
+  sqlite-data:
+  postgres-data:
+  sqlserver-data:
+  mysql-data:

@@ -7,7 +7,7 @@
   ],
   "identity": "T3mmy.VSA.Template",
   "name": "T3mmyVSA",
-  "description": "A production-oriented ASP.NET Core 10 Web API starter using Vertical Slice Architecture, Identity, granular permissions, multi-provider EF Core persistence, FluentValidation, Serilog, Hangfire, health checks, and hardened configuration defaults.",
+  "description": "A production-oriented ASP.NET Core 10 Web API starter using Vertical Slice Architecture, Identity, granular permissions, multi-provider EF Core persistence, FluentValidation, Serilog, Hangfire, Docker, health checks, and hardened configuration defaults.",
   "shortName": "t3mmyvsa",
   "sourceName": "T3mmyvsa",
   "tags": {
