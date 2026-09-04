@@ -17,8 +17,6 @@
         <PackageReference Include="Asp.Versioning.Mvc.ApiExplorer" />
         <PackageReference Include="Carter" />
         <PackageReference Include="Cortex.Mediator" />
-        <PackageReference Include="Cortex.States" />
-        <PackageReference Include="Cortex.Streams" />
         <PackageReference Include="FluentValidation" />
         <PackageReference Include="FluentValidation.DependencyInjectionExtensions" />
         <PackageReference Include="Hangfire.AspNetCore" />
@@ -40,17 +38,10 @@
         <PackageReference Include="Microsoft.OpenApi" />
         <PackageReference Include="MimeKit" />
         <PackageReference Include="MySql.EntityFrameworkCore" />
-        <PackageReference Include="QuestPDF" />
-        <PackageReference Include="QuestPDF.HTML" />
-        <PackageReference Include="Riok.Mapperly" />
-        <PackageReference Include="Refit" />
-        <PackageReference Include="Refit.HttpClientFactory" />
         <PackageReference Include="Scalar.AspNetCore" />
         <PackageReference Include="Scrutor" />
         <PackageReference Include="Serilog" />
         <PackageReference Include="Serilog.AspNetCore" />
-        <PackageReference Include="Serilog.Extensions.Hosting" />
-        <PackageReference Include="Serilog.Extensions.Logging" />
         <PackageReference Include="Serilog.Settings.Configuration" />
         <PackageReference Include="Serilog.Sinks.Console" />
         <PackageReference Include="Serilog.Exceptions" />

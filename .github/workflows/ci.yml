@@ -13,6 +13,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Reject committed package artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git ls-files '*.nupkg' '*.snupkg' | grep -q .; then
+            echo "NuGet package artifacts must not be committed to source control." >&2
+            git ls-files '*.nupkg' '*.snupkg'
+            exit 1
+          fi
+
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
@@ -22,4 +32,4 @@ jobs:
         run: dotnet restore T3mmyvsa.slnx
 
       - name: Build
-        run: dotnet build T3mmyvsa.slnx -c Release --no-restore
+        run: dotnet build T3mmyvsa.slnx -c Release --no-restore -p:ContinuousIntegrationBuild=true

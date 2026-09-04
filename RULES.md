@@ -125,3 +125,16 @@ Use the **T3mmyvsa CLI** to create the initial mechanical slice, then add busine
 - **Retries**: Keep retries bounded; override only when the use case justifies a different policy.
 - **Queues**: Use lowercase queue names and configure worker queues explicitly.
 - **Isolation**: `Hangfire:ServerEnabled=false` may be used on web nodes when a dedicated worker deployment processes jobs.
+
+## 15. Dependencies, Packages & Releases
+
+- **Central Versions**: Web dependencies are versioned through `T3mmyvsa.Web/Directory.Packages.props`; do not add inline package versions to the Web project.
+- **Minimal Surface**: Add a package only when starter runtime/source code directly needs the capability. Optional product features such as PDF generation or Refit clients do not belong in the core template unless an actual starter feature uses them.
+- **NuGet Audit**: Generated projects audit direct and transitive dependencies. High/critical advisories (`NU1903`/`NU1904`) are build-blocking; moderate advisories remain visible and must be assessed.
+- **Patch Discipline**: Keep Microsoft .NET/EF packages on one supported patch band and keep provider packages compatible with the target EF major version.
+- **Artifacts**: Never commit `.nupkg`, `.snupkg`, `bin`, `obj`, or release output directories.
+- **Versioning**: CLI and template packages share the repository `VersionPrefix` in the root `Directory.Build.props`. Breaking starter contracts require a major version bump.
+- **Release Gate**: A package release must restore and build the full solution, pack both packages, install the packaged CLI/template, scaffold a smoke feature, and build the generated application before publishing.
+- **Release Tags**: Published GitHub releases use `v<VersionPrefix>`; the publish workflow rejects mismatched tags.
+- **Manual Publish**: Manual package workflow runs are dry-run by default. Publishing must be explicitly enabled.
+- **Dependency Updates**: Dependabot is grouped and deliberately low-frequency to avoid noisy PR/CI churn; security updates should still be reviewed promptly.

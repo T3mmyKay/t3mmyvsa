@@ -1,6 +1,9 @@
 bin/
 obj/
 /packages/
+artifacts/
+*.nupkg
+*.snupkg
 riderModule.iml
 /_ReSharper.Caches/
 Logs/

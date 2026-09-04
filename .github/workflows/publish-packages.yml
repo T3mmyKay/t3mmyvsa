@@ -4,13 +4,30 @@ on:
   release:
     types: [published]
   workflow_dispatch:
+    inputs:
+      publish:
+        description: "Publish packages after build and smoke tests"
+        required: true
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+concurrency:
+  group: nuget-packages-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
-  publish:
+  package:
     runs-on: ubuntu-latest
     permissions:
       contents: read
       packages: write
+
+    env:
+      DOTNET_NOLOGO: true
+      NUGET_XMLDOC_MODE: skip
 
     steps:
       - uses: actions/checkout@v4
@@ -18,31 +35,129 @@ jobs:
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: 10.0
+          dotnet-version: 10.0.x
 
-      - name: Restore dependencies
-        run: dotnet restore
+      - name: Resolve release version
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION=$(sed -n 's:.*<VersionPrefix>\([^<]*\)</VersionPrefix>.*:\1:p' Directory.Build.props | head -n 1)
+          if [ -z "$VERSION" ]; then
+            echo "VersionPrefix is missing from Directory.Build.props." >&2
+            exit 1
+          fi
+
+          if [ "${{ github.event_name }}" = "release" ]; then
+            EXPECTED_TAG="v${VERSION}"
+            ACTUAL_TAG="${{ github.event.release.tag_name }}"
+            if [ "$ACTUAL_TAG" != "$EXPECTED_TAG" ]; then
+              echo "Release tag '$ACTUAL_TAG' does not match repository version '$EXPECTED_TAG'." >&2
+              exit 1
+            fi
+          elif [ "${{ inputs.publish }}" = "true" ] && [ "$GITHUB_REF" != "refs/heads/main" ]; then
+            echo "Manual publishing is only allowed from main. Run with publish=false for branch dry-runs." >&2
+            exit 1
+          fi
+
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+          echo "Packaging T3mmyVSA $VERSION"
+
+      - name: Restore solution
+        run: dotnet restore T3mmyvsa.slnx
+
+      - name: Build solution
+        run: dotnet build T3mmyvsa.slnx -c Release --no-restore -p:ContinuousIntegrationBuild=true
 
       - name: Pack CLI
-        run: dotnet pack T3mmyvsa.CLI/T3mmyvsa.CLI.csproj -c Release --no-restore
+        run: >-
+          dotnet pack T3mmyvsa.CLI/T3mmyvsa.CLI.csproj
+          -c Release
+          --no-build
+          -o artifacts/packages
+          -p:PackageVersion=${VERSION}
+          -p:ContinuousIntegrationBuild=true
 
-      - name: Pack Templates
-        run: dotnet pack T3mmyvsa.Templates/T3mmyvsa.Templates.csproj -c Release --no-restore
+      - name: Pack templates
+        run: >-
+          dotnet pack T3mmyvsa.Templates/T3mmyvsa.Templates.csproj
+          -c Release
+          --no-build
+          -o artifacts/packages
+          -p:PackageVersion=${VERSION}
+          -p:ContinuousIntegrationBuild=true
 
-      # ========== GitHub Packages ==========
+      - name: Smoke test packaged CLI and template
+        shell: bash
+        env:
+          ConnectionStrings__sqlConnection: "Server=localhost;Database=T3mmyVsaSmoke;User Id=sa;Password=SmokeOnly_Password123!;TrustServerCertificate=True"
+          JwtSettings__Secret: "SmokeOnlyJwtSigningSecret_ChangeMe_1234567890"
+          Hangfire__Enabled: "false"
+        run: |
+          set -euo pipefail
+          TOOL_DIR="$RUNNER_TEMP/t3mmyvsa-tool"
+          APP_DIR="$RUNNER_TEMP/t3mmyvsa-smoke"
+
+          dotnet tool install T3mmyvsa.CLI \
+            --tool-path "$TOOL_DIR" \
+            --add-source artifacts/packages \
+            --version "$VERSION"
+
+          dotnet new install "artifacts/packages/T3mmy.VSA.Templates.${VERSION}.nupkg"
+          dotnet new t3mmyvsa -n PackageSmoke -o "$APP_DIR"
+
+          cd "$APP_DIR"
+          "$TOOL_DIR/t3mmyvsa" make:entity SmokeProduct
+          "$TOOL_DIR/t3mmyvsa" make:feature SmokeProduct
+          dotnet build -c Release
+
+      - name: Validate publishing credentials
+        if: ${{ github.event_name == 'release' || inputs.publish }}
+        shell: bash
+        env:
+          NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
+        run: |
+          set -euo pipefail
+          if [ -z "$NUGET_API_KEY" ]; then
+            echo "NUGET_API_KEY is required before publishing to any registry." >&2
+            exit 1
+          fi
+
       - name: Add GitHub Packages source
-        run: dotnet nuget add source --username ${{ github.actor }} --password ${{ secrets.GITHUB_TOKEN }} --store-password-in-clear-text --name github "https://nuget.pkg.github.com/T3mmyKay/index.json"
+        if: ${{ github.event_name == 'release' || inputs.publish }}
+        run: >-
+          dotnet nuget add source
+          --username "${{ github.actor }}"
+          --password "${{ secrets.GITHUB_TOKEN }}"
+          --store-password-in-clear-text
+          --name github
+          "https://nuget.pkg.github.com/T3mmyKay/index.json"
 
       - name: Push CLI to GitHub Packages
-        run: dotnet nuget push T3mmyvsa.CLI/bin/Release/*.nupkg --source "github" --skip-duplicate
+        if: ${{ github.event_name == 'release' || inputs.publish }}
+        run: >-
+          dotnet nuget push "artifacts/packages/T3mmyvsa.CLI.${VERSION}.nupkg"
+          --source github
+          --skip-duplicate
 
-      - name: Push Templates to GitHub Packages
-        run: dotnet nuget push T3mmyvsa.Templates/bin/Release/*.nupkg --source "github" --skip-duplicate
+      - name: Push templates to GitHub Packages
+        if: ${{ github.event_name == 'release' || inputs.publish }}
+        run: >-
+          dotnet nuget push "artifacts/packages/T3mmy.VSA.Templates.${VERSION}.nupkg"
+          --source github
+          --skip-duplicate
 
-      # ========== NuGet.org ==========
       - name: Push CLI to NuGet.org
-        run: dotnet nuget push T3mmyvsa.CLI/bin/Release/*.nupkg --api-key ${{ secrets.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json --skip-duplicate
+        if: ${{ github.event_name == 'release' || inputs.publish }}
+        run: >-
+          dotnet nuget push "artifacts/packages/T3mmyvsa.CLI.${VERSION}.nupkg"
+          --api-key "${{ secrets.NUGET_API_KEY }}"
+          --source https://api.nuget.org/v3/index.json
+          --skip-duplicate
 
-      - name: Push Templates to NuGet.org
-        run: dotnet nuget push T3mmyvsa.Templates/bin/Release/*.nupkg --api-key ${{ secrets.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json --skip-duplicate
-
+      - name: Push templates to NuGet.org
+        if: ${{ github.event_name == 'release' || inputs.publish }}
+        run: >-
+          dotnet nuget push "artifacts/packages/T3mmy.VSA.Templates.${VERSION}.nupkg"
+          --api-key "${{ secrets.NUGET_API_KEY }}"
+          --source https://api.nuget.org/v3/index.json
+          --skip-duplicate

@@ -4,9 +4,8 @@
     <PackageType>Template</PackageType>
     <PackageId>T3mmy.VSA.Templates</PackageId>
     <Title>T3mmyVSA Templates</Title>
-    <Authors>T3mmy</Authors>
-    <Description>Templates for T3mmyVSA Vertical Slice Architecture.</Description>
-    <PackageTags>dotnet-new;templates;webapi;vertical-slice-architecture</PackageTags>
+    <Description>Production-oriented .NET 10 Vertical Slice Architecture project template.</Description>
+    <PackageTags>dotnet-new;templates;webapi;vertical-slice-architecture;t3mmyvsa</PackageTags>
     <TargetFramework>net10.0</TargetFramework>
 
     <IncludeContentInPack>true</IncludeContentInPack>
@@ -14,10 +13,6 @@
     <ContentTargetFolders>content</ContentTargetFolders>
     <NoWarn>$(NoWarn);NU5128</NoWarn>
     <NoDefaultExcludes>true</NoDefaultExcludes>
-    <Version>1.1.4</Version>
-    <RepositoryUrl>https://github.com/T3mmyKay/t3mmyvsa</RepositoryUrl>
-    <RepositoryType>git</RepositoryType>
-    <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageReadmeFile>README.md</PackageReadmeFile>
   </PropertyGroup>
 
@@ -26,7 +21,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Content Include="../T3mmyvsa.Web/**/*" Exclude="../T3mmyvsa.Web/**/bin/**;../T3mmyvsa.Web/**/obj/**;../T3mmyvsa.Web/.vs/**;../T3mmyvsa.Web/.git/**;../T3mmyvsa.Web/.idea/**;../T3mmyvsa.Web/logs/**">
+    <Content Include="../T3mmyvsa.Web/**/*"
+             Exclude="../T3mmyvsa.Web/**/bin/**;../T3mmyvsa.Web/**/obj/**;../T3mmyvsa.Web/.vs/**;../T3mmyvsa.Web/.git/**;../T3mmyvsa.Web/.idea/**;../T3mmyvsa.Web/logs/**;../T3mmyvsa.Web/**/*.nupkg;../T3mmyvsa.Web/**/*.snupkg">
       <PackagePath>content/T3mmy.VSA.Templates</PackagePath>
     </Content>
   </ItemGroup>
