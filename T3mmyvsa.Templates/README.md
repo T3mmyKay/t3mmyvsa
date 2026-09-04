@@ -32,6 +32,7 @@ dotnet new t3mmyvsa -n MyProject
 - health/readiness checks
 - hardened CORS, proxy, rate-limit and production configuration defaults
 - production-style Dockerfile and multi-provider Docker Compose development stack
+- xUnit v3 + Microsoft Testing Platform unit, architecture and Testcontainers-backed integration tests
 
 The generated project intentionally contains no pre-generated EF migrations. Select the database provider and connection string first, then run:
 
@@ -42,26 +43,19 @@ dotnet ef database update
 
 See `docs/DATABASE_PROVIDERS.md` in the generated project for provider aliases, migration rules and independent Hangfire storage configuration.
 
-## Docker
+## Testing
 
-The generated project includes:
-
-- a multi-stage .NET 10 Dockerfile;
-- a non-root/read-only API runtime container;
-- a dedicated EF migration target/job;
-- persistent Data Protection keys and logs;
-- PostgreSQL, SQL Server and MySQL Compose profiles;
-- SQLite volume support.
-
-PostgreSQL is the default Docker development profile. Start with:
+Generated projects include unit, architecture and HTTP integration test projects. Integration tests use a disposable PostgreSQL Testcontainer and therefore require Docker.
 
 ```bash
-cp .env.example .env
-# fill POSTGRES_PASSWORD and JWT_SECRET
-docker compose up --build
+dotnet test T3mmyvsa.slnx -c Release
 ```
 
-See `docs/DOCKER.md` in the generated project for all provider profiles and production guidance.
+See `docs/TESTING.md` for layer-specific commands and MTP code coverage.
+
+## Docker
+
+The generated project includes a multi-stage .NET 10 Dockerfile, non-root/read-only API runtime, EF migration job, persistent Data Protection keys/logs, PostgreSQL/SQL Server/MySQL Compose profiles and SQLite volume support.
 
 ## CLI Tool
 
@@ -77,8 +71,6 @@ Then scaffold from the generated web project:
 dotnet t3mmyvsa make:entity Product
 dotnet t3mmyvsa make:feature Product
 ```
-
-See the CLI package README for `--base`, `--force`, navigation-property behavior and generated CRUD conventions.
 
 ## License
 

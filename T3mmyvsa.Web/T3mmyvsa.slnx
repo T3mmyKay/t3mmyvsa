@@ -1,0 +1,6 @@
+<Solution>
+  <Project Path="T3mmyvsa.csproj" />
+  <Project Path="Tests/T3mmyvsa.UnitTests/T3mmyvsa.UnitTests.csproj" />
+  <Project Path="Tests/T3mmyvsa.ArchitectureTests/T3mmyvsa.ArchitectureTests.csproj" />
+  <Project Path="Tests/T3mmyvsa.IntegrationTests/T3mmyvsa.IntegrationTests.csproj" />
+</Solution>

@@ -48,3 +48,24 @@ jobs:
 
       - name: Build
         run: dotnet build T3mmyvsa.slnx -c Release --no-restore -p:ContinuousIntegrationBuild=true
+
+      - name: Unit tests with coverage
+        working-directory: T3mmyvsa.Web
+        run: >-
+          dotnet test Tests/T3mmyvsa.UnitTests/T3mmyvsa.UnitTests.csproj
+          -c Release --no-build --no-restore
+          --coverage
+          --coverage-output TestResults/unit.cobertura.xml
+          --coverage-output-format cobertura
+
+      - name: Architecture tests
+        working-directory: T3mmyvsa.Web
+        run: >-
+          dotnet test Tests/T3mmyvsa.ArchitectureTests/T3mmyvsa.ArchitectureTests.csproj
+          -c Release --no-build --no-restore
+
+      - name: Integration tests
+        working-directory: T3mmyvsa.Web
+        run: >-
+          dotnet test Tests/T3mmyvsa.IntegrationTests/T3mmyvsa.IntegrationTests.csproj
+          -c Release --no-build --no-restore
