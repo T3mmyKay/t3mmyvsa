@@ -1,3 +1,6 @@
+using Microsoft.AspNetCore.RateLimiting;
+using T3mmyvsa.Configuration;
+
 namespace T3mmyvsa.Features.Auth.ForgotPassword;
 
 public class ForgotPasswordEndpoint : ICarterModule
@@ -17,6 +20,8 @@ public class ForgotPasswordEndpoint : ICarterModule
         .WithDescription("Sends a password reset link to the user's email if the account exists.")
         .Produces(StatusCodes.Status200OK)
         .ProducesProblem(StatusCodes.Status400BadRequest)
+        .ProducesProblem(StatusCodes.Status429TooManyRequests)
+        .RequireRateLimiting(RateLimitPolicyNames.Recovery)
         .AllowAnonymous();
     }
 }

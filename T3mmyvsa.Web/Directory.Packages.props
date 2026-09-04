@@ -1,14 +1,11 @@
 <Project>
   <PropertyGroup>
     <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
-    <!-- Reusable version variables for centrally managed packages.
-             Use in PackageVersion as: Version="$(PropertyName)" -->
     <DotNetVersion>10.0</DotNetVersion>
-    <!-- Microsoft package version families -->
     <MicrosoftAspNetCoreVersion>10.0.1</MicrosoftAspNetCoreVersion>
     <MicrosoftEntityFrameworkCoreVersion>10.0.1</MicrosoftEntityFrameworkCoreVersion>
     <MicrosoftExtensionsVersion>10.0.1</MicrosoftExtensionsVersion>
-    <TickerQVersion>10.0.2</TickerQVersion>
+    <HangfireVersion>1.8.25</HangfireVersion>
   </PropertyGroup>
   <ItemGroup>
     <PackageVersion Include="Asp.Versioning.Http" Version="8.1.0" />
@@ -19,6 +16,8 @@
     <PackageVersion Include="Cortex.Streams" Version="2.1.0" />
     <PackageVersion Include="FluentValidation" Version="12.1.1" />
     <PackageVersion Include="FluentValidation.DependencyInjectionExtensions" Version="12.1.1" />
+    <PackageVersion Include="Hangfire.AspNetCore" Version="$(HangfireVersion)" />
+    <PackageVersion Include="Hangfire.SqlServer" Version="$(HangfireVersion)" />
     <PackageVersion Include="MailKit" Version="4.14.1" />
     <PackageVersion Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="$(MicrosoftAspNetCoreVersion)" />
     <PackageVersion Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="$(MicrosoftAspNetCoreVersion)" />
@@ -45,9 +44,5 @@
     <PackageVersion Include="Refit" Version="10.0.1" />
     <PackageVersion Include="Refit.HttpClientFactory" Version="10.0.1" />
     <PackageVersion Include="Serilog.Sinks.File" Version="7.0.0" />
-    <PackageVersion Include="TickerQ" Version="10.0.2" />
-    <PackageVersion Include="TickerQ.Dashboard" Version="$(TickerQVersion)" />
-    <PackageVersion Include="TickerQ.EntityFrameworkCore" Version="$(TickerQVersion)" />
-    <PackageVersion Include="TickerQ.Utilities" Version="$(TickerQVersion)" />
   </ItemGroup>
 </Project>

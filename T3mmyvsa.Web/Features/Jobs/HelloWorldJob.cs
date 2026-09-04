@@ -1,18 +1,10 @@
-using TickerQ.Utilities.Base;
-using Serilog;
-
 namespace T3mmyvsa.Features.Jobs;
 
-public class HelloWorldJob
+public sealed class HelloWorldJob(ILogger<HelloWorldJob> logger)
 {
-    [TickerFunction("HelloWorld")]
-    public async Task HelloWorld(
-        TickerFunctionContext context,
-        CancellationToken cancellationToken)
+    public Task ExecuteAsync(CancellationToken cancellationToken)
     {
-        Log.Information("Hello from TickerQ! Job ID: {JobId}", context.Id);
-        Log.Information("Scheduled at: {ScheduledTime}", DateTime.UtcNow);
-
-        await Task.CompletedTask;
+        logger.LogInformation("Hello from Hangfire at {ExecutedAtUtc}.", DateTimeOffset.UtcNow);
+        return Task.CompletedTask;
     }
 }

@@ -2,6 +2,8 @@ using System.Security.Claims;
 using System.Text;
 using Cortex.Mediator.DependencyInjection;
 using FluentValidation;
+using Hangfire;
+using Hangfire.SqlServer;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.IdentityModel.Tokens;
@@ -12,10 +14,7 @@ using T3mmyvsa.Data;
 using T3mmyvsa.Entities;
 using T3mmyvsa.Exceptions;
 using T3mmyvsa.Interfaces;
-using TickerQ.DependencyInjection;
-using TickerQ.EntityFrameworkCore.DependencyInjection;
-using TickerQ.EntityFrameworkCore.DbContextFactory;
-using TickerQ.Dashboard.DependencyInjection;
+using T3mmyvsa.Security;
 
 namespace T3mmyvsa.Extensions;
 
@@ -115,19 +114,25 @@ public static class ServiceExtensions
         {
             var databaseSettings = configuration.GetSection("DatabaseSettings").Get<DatabaseSettings>();
             var connectionString = configuration.GetConnectionString("sqlConnection");
+            if (string.IsNullOrWhiteSpace(connectionString))
+            {
+                throw new InvalidOperationException(
+                    "ConnectionStrings:sqlConnection must be supplied through environment configuration, user-secrets, or the deployment secret store.");
+            }
 
             services.AddDbContextFactory<AppDbContext>((sp, opts) =>
             {
                 switch (databaseSettings?.DBProvider?.ToLowerInvariant())
                 {
                     case "mysql":
-                        opts.UseMySQL(connectionString!);
+                        opts.UseMySQL(connectionString);
                         break;
                     case "mssql":
                     default:
                         opts.UseSqlServer(connectionString);
                         break;
                 }
+
                 opts.AddInterceptors(sp.GetRequiredService<Interceptors.AuditInterceptor>());
             });
         }
@@ -135,6 +140,12 @@ public static class ServiceExtensions
         public void ConfigureDbConnection(IConfiguration configuration)
         {
             var connectionString = configuration.GetConnectionString("sqlConnection");
+            if (string.IsNullOrWhiteSpace(connectionString))
+            {
+                throw new InvalidOperationException(
+                    "ConnectionStrings:sqlConnection must be supplied through environment configuration, user-secrets, or the deployment secret store.");
+            }
+
             services.AddScoped<System.Data.IDbConnection>(_ =>
                 new Microsoft.Data.SqlClient.SqlConnection(connectionString));
         }
@@ -212,48 +223,58 @@ public static class ServiceExtensions
             services.AddAuthorization();
         }
 
-        public void ConfigureCors()
+        public void ConfigureHangfire(IConfiguration configuration, bool startServer)
         {
-            services.AddCors(options =>
+            services.AddOptionsWithFluentValidation<HangfireSettings>("Hangfire");
+            var settings = configuration.GetSection("Hangfire").Get<HangfireSettings>() ?? new HangfireSettings();
+            if (!settings.Enabled)
             {
-                options.AddPolicy("CorsPolicy", builder =>
-                    builder.AllowAnyOrigin()
-                        .AllowAnyMethod()
-                        .AllowAnyHeader());
-            });
-        }
+                return;
+            }
 
-        public void ConfigureTickerQ(IConfiguration configuration)
-        {
-            services.AddTickerQ(options =>
+            var connectionString = configuration.GetConnectionString(settings.ConnectionStringName);
+            if (string.IsNullOrWhiteSpace(connectionString))
             {
-                options.AddDashboard(dashboardOptions =>
-                {
-                    dashboardOptions.WithBasicAuth("tickeqAdmin", "tickeqAdmin@123");
-                });
+                throw new InvalidOperationException(
+                    $"ConnectionStrings:{settings.ConnectionStringName} must be configured when Hangfire is enabled.");
+            }
 
-                options.ConfigureScheduler(scheduler =>
-                {
-                    scheduler.MaxConcurrency = 8;
-                    scheduler.NodeIdentifier = Environment.MachineName;
-                });
-
-                options.AddOperationalStore(efOptions =>
-                {
-                    var connectionString = configuration.GetConnectionString("sqlConnection");
-
-                    efOptions.UseTickerQDbContext<TickerQDbContext>(optionsBuilder =>
+            services.AddSingleton<HangfireDashboardAuthorizationFilter>();
+            services.AddHangfire((_, hangfire) =>
+            {
+                hangfire
+                    .SetDataCompatibilityLevel(CompatibilityLevel.Version_180)
+                    .UseSimpleAssemblyNameTypeSerializer()
+                    .UseRecommendedSerializerSettings()
+                    .UseSqlServerStorage(connectionString, new SqlServerStorageOptions
                     {
-                        optionsBuilder.UseSqlServer(connectionString, cfg =>
-                        {
-                            cfg.MigrationsAssembly(typeof(Program).Assembly.GetName().Name!);
-                            cfg.EnableRetryOnFailure(3, TimeSpan.FromSeconds(5), null);
-                        });
-                    }, schema: "ticker");
-
-                    efOptions.SetDbContextPoolSize(34);
-                });
+                        SchemaName = settings.SchemaName,
+                        PrepareSchemaIfNecessary = settings.PrepareSchemaIfNecessary,
+                        CommandBatchMaxTimeout = TimeSpan.FromMinutes(5),
+                        SlidingInvisibilityTimeout = TimeSpan.FromMinutes(5),
+                        QueuePollInterval = TimeSpan.Zero,
+                        UseRecommendedIsolationLevel = true,
+                        DisableGlobalLocks = true,
+                        TryAutoDetectSchemaDependentOptions = false
+                    })
+                    .UseFilter(new AutomaticRetryAttribute
+                    {
+                        Attempts = settings.AutomaticRetryAttempts,
+                        OnAttemptsExceeded = AttemptsExceededAction.Fail
+                    });
             });
+
+            if (startServer)
+            {
+                services.AddHangfireServer(options =>
+                {
+                    options.Queues = settings.Queues;
+                    if (settings.WorkerCount.HasValue)
+                    {
+                        options.WorkerCount = settings.WorkerCount.Value;
+                    }
+                });
+            }
         }
     }
 }

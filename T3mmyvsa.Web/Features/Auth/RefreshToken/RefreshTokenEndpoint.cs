@@ -1,3 +1,6 @@
+using Microsoft.AspNetCore.RateLimiting;
+using T3mmyvsa.Configuration;
+
 namespace T3mmyvsa.Features.Auth.RefreshToken;
 
 public class RefreshTokenEndpoint : ICarterModule
@@ -18,6 +21,8 @@ public class RefreshTokenEndpoint : ICarterModule
         .Produces<RefreshTokenResponse>(StatusCodes.Status200OK)
         .ProducesProblem(StatusCodes.Status400BadRequest)
         .ProducesProblem(StatusCodes.Status401Unauthorized)
+        .ProducesProblem(StatusCodes.Status429TooManyRequests)
+        .RequireRateLimiting(RateLimitPolicyNames.Refresh)
         .AllowAnonymous();
     }
 }

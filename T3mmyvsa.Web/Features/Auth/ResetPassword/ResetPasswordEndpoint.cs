@@ -1,3 +1,6 @@
+using Microsoft.AspNetCore.RateLimiting;
+using T3mmyvsa.Configuration;
+
 namespace T3mmyvsa.Features.Auth.ResetPassword;
 
 public class ResetPasswordEndpoint : ICarterModule
@@ -17,6 +20,8 @@ public class ResetPasswordEndpoint : ICarterModule
         .WithDescription("Resets the user's password using the provided token.")
         .Produces(StatusCodes.Status200OK)
         .ProducesProblem(StatusCodes.Status400BadRequest)
+        .ProducesProblem(StatusCodes.Status429TooManyRequests)
+        .RequireRateLimiting(RateLimitPolicyNames.Recovery)
         .AllowAnonymous();
     }
 }

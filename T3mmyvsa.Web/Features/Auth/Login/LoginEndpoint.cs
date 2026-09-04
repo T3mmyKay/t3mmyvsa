@@ -1,3 +1,6 @@
+using Microsoft.AspNetCore.RateLimiting;
+using T3mmyvsa.Configuration;
+
 namespace T3mmyvsa.Features.Auth.Login;
 
 public class LoginEndpoint : ICarterModule
@@ -18,6 +21,8 @@ public class LoginEndpoint : ICarterModule
         .Produces<LoginResponse>(StatusCodes.Status200OK)
         .ProducesProblem(StatusCodes.Status400BadRequest)
         .ProducesProblem(StatusCodes.Status401Unauthorized)
+        .ProducesProblem(StatusCodes.Status429TooManyRequests)
+        .RequireRateLimiting(RateLimitPolicyNames.Login)
         .AllowAnonymous();
     }
 }

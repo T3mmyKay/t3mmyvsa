@@ -1,14 +1,19 @@
 using System.Reflection;
+using Hangfire;
+using Hangfire.Dashboard;
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Options;
 using Scalar.AspNetCore;
 using Serilog;
 using Serilog.Exceptions;
-using TickerQ.DependencyInjection;
+using T3mmyvsa.Configuration;
 using T3mmyvsa.Data;
 using T3mmyvsa.Extensions;
 using T3mmyvsa.Filters;
 using T3mmyvsa.OpenApi;
+using T3mmyvsa.Security;
 
 Log.Logger = new LoggerConfiguration()
     .WriteTo.Console()
@@ -24,6 +29,8 @@ try
             Assembly.GetEntryAssembly()?.GetName().Name,
             "GetDocument.Insider",
             StringComparison.Ordinal);
+
+    builder.WebHost.ConfigureKestrel(options => options.AddServerHeader = false);
 
     builder.Host.UseSerilog((context, services, configuration) => configuration
         .ReadFrom.Configuration(context.Configuration)
@@ -42,12 +49,14 @@ try
         options.AddDocumentTransformer<ServerUrlTransformer>();
     });
 
+    builder.Services.ConfigureDatabaseSettings(builder.Configuration);
     builder.Services.ConfigureSqlContext(builder.Configuration);
     builder.Services.ConfigureDbConnection(builder.Configuration);
     builder.Services.ConfigureIdentity();
     builder.Services.ConfigureJwt(builder.Configuration);
     builder.Services.ConfigureMail(builder.Configuration);
     builder.Services.ConfigureAppSettings(builder.Configuration);
+    builder.Services.ConfigureBootstrapAdmin();
     builder.Services.ConfigureServiceScanning();
     builder.Services.ConfigureApiVersioning();
     builder.Services.ConfigureValidation();
@@ -55,9 +64,13 @@ try
     builder.Services.ConfigureHttpContextAccessor();
     builder.Services.ConfigureProblemDetails();
     builder.Services.ConfigureCarter();
-    builder.Services.ConfigureTickerQ(builder.Configuration);
+    builder.Services.ConfigureCors(builder.Configuration);
+    builder.Services.ConfigureForwardedHeaders(builder.Configuration);
+    builder.Services.ConfigureRateLimiting(builder.Configuration);
+    builder.Services.ConfigureTransportSecurity();
+    builder.Services.ConfigureHangfire(builder.Configuration, !isBuildTimeOpenApiGeneration);
+    builder.Services.ConfigureHealthChecks(builder.Configuration);
     builder.Services.ConfigureCortexMediator(builder.Configuration);
-    builder.Services.ConfigureCors();
     builder.Services.Configure<Microsoft.AspNetCore.Http.Json.JsonOptions>(options =>
     {
         options.SerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter());
@@ -85,6 +98,7 @@ try
                     StatusCodes.Status403Forbidden => "Forbidden",
                     StatusCodes.Status404NotFound => "Not Found",
                     StatusCodes.Status409Conflict => "Conflict",
+                    StatusCodes.Status429TooManyRequests => "Too Many Requests",
                     _ => "Request Failed"
                 }
             }
@@ -92,25 +106,51 @@ try
     });
     app.UseExceptionHandler();
 
-    app.UseHttpsRedirection();
-    app.MapStaticAssets();
+    app.UseConfiguredForwardedHeaders();
+    if (!app.Environment.IsDevelopment())
+    {
+        app.UseHsts();
+    }
 
+    app.UseHttpsRedirection();
+    app.UseSecurityHeaders();
+    app.MapStaticAssets();
     app.UseSerilogRequestLogging();
 
-    app.UseCors("CorsPolicy");
-
+    app.UseRouting();
+    app.UseCors(SecurityExtensions.CorsPolicyName);
+    app.UseRateLimiter();
     app.UseAuthentication();
     app.UseAuthorization();
 
-    app.MapOpenApi();
-    app.MapScalarApiReference();
-    app.MapGet("/", () => Results.Redirect("/scalar/v1")).ExcludeFromDescription();
-
-    // Build-time OpenAPI generation invokes the app entry point. Runtime services that
-    // touch infrastructure must not start while the GetDocument host is inspecting endpoints.
-    if (!isBuildTimeOpenApiGeneration)
+    var exposeApiDocs = isBuildTimeOpenApiGeneration ||
+                        app.Environment.IsDevelopment() ||
+                        app.Configuration.GetValue<bool>("ApiDocumentation:Enabled");
+    if (exposeApiDocs)
     {
-        app.UseTickerQ();
+        app.MapOpenApi();
+        app.MapScalarApiReference();
+        app.MapGet("/", () => Results.Redirect("/scalar/v1")).ExcludeFromDescription();
+    }
+
+    app.MapHealthChecks("/health/live", new HealthCheckOptions
+    {
+        Predicate = _ => false
+    }).AllowAnonymous();
+
+    app.MapHealthChecks("/health/ready", new HealthCheckOptions
+    {
+        Predicate = registration => registration.Tags.Contains("ready")
+    }).AllowAnonymous();
+
+    var hangfireSettings = app.Services.GetRequiredService<IOptions<HangfireSettings>>().Value;
+    if (!isBuildTimeOpenApiGeneration && hangfireSettings.Enabled && hangfireSettings.Dashboard.Enabled)
+    {
+        app.UseHangfireDashboard(hangfireSettings.Dashboard.Path, new DashboardOptions
+        {
+            Authorization = [app.Services.GetRequiredService<HangfireDashboardAuthorizationFilter>()],
+            IsReadOnlyFunc = _ => hangfireSettings.Dashboard.ReadOnly
+        });
     }
 
     var versionSet = app.NewApiVersionSet()
@@ -134,7 +174,6 @@ try
 }
 catch (Microsoft.Extensions.Hosting.HostAbortedException)
 {
-    // Ignore this exception as it is thrown by EF Core tools when generating migrations.
     Log.Information("Host aborted (likely by EF Core tools).");
 }
 catch (Exception ex)
