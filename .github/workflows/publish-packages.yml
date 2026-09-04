@@ -94,12 +94,12 @@ jobs:
           -p:PackageVersion=${VERSION}
           -p:ContinuousIntegrationBuild=true
 
-      - name: Smoke test packaged CLI and template
+      - name: Smoke test packaged CLI, template and deployment topology
         shell: bash
         env:
-          DatabaseSettings__Provider: "sqlserver"
+          DatabaseSettings__Provider: "postgresql"
           DatabaseSettings__ConnectionStringName: "appDatabase"
-          ConnectionStrings__appDatabase: "Server=localhost;Database=T3mmyVsaSmoke;User Id=sa;Password=SmokeOnly_Password123!;TrustServerCertificate=True"
+          ConnectionStrings__appDatabase: "Host=localhost;Port=5432;Database=PackageSmoke;Username=postgres;Password=smoke-postgres"
           JwtSettings__Secret: "SmokeOnlyJwtSigningSecret_ChangeMe_1234567890"
           Hangfire__Enabled: "false"
           JWT_SECRET: "SmokeOnlyDockerJwtSigningSecret_1234567890"
@@ -111,6 +111,14 @@ jobs:
           set -euo pipefail
           TOOL_DIR="$RUNNER_TEMP/t3mmyvsa-tool"
           APP_DIR="$RUNNER_TEMP/t3mmyvsa-smoke"
+          NETWORK="t3mmyvsa-smoke-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          DB_CONTAINER="t3mmyvsa-postgres-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+
+          cleanup() {
+            docker rm -f "$DB_CONTAINER" >/dev/null 2>&1 || true
+            docker network rm "$NETWORK" >/dev/null 2>&1 || true
+          }
+          trap cleanup EXIT
 
           dotnet tool install T3mmyvsa.CLI \
             --tool-path "$TOOL_DIR" \
@@ -133,15 +141,51 @@ jobs:
           dotnet test Tests/*ArchitectureTests/*.csproj -c Release --no-build --no-restore
           dotnet test Tests/*IntegrationTests/*.csproj -c Release --no-build --no-restore
 
-          cp .env.example .env
-          bash docker/create-migration.sh PackageSmokeInitial
+          dotnet ef migrations add PackageSmokeInitial \
+            --project Migrations/T3mmyvsa.Migrations.csproj \
+            --startup-project Migrations/T3mmyvsa.Migrations.csproj \
+            --output-dir Data/Migrations
 
           for env_file in .env.example docker/env/*.env.example; do
             docker compose --env-file "$env_file" config --quiet
           done
 
           docker build --target migrations --tag t3mmyvsa-migrations-smoke:local .
+          docker build --target worker --tag t3mmyvsa-worker-smoke:local .
           docker build --target final --tag t3mmyvsa-api-smoke:local .
+
+          docker network create "$NETWORK"
+          docker run -d \
+            --name "$DB_CONTAINER" \
+            --network "$NETWORK" \
+            -e POSTGRES_DB=PackageSmoke \
+            -e POSTGRES_USER=postgres \
+            -e POSTGRES_PASSWORD=smoke-postgres \
+            postgres:18-alpine
+
+          ready=false
+          for attempt in {1..30}; do
+            if docker exec "$DB_CONTAINER" pg_isready -U postgres -d PackageSmoke >/dev/null 2>&1; then
+              ready=true
+              break
+            fi
+            sleep 1
+          done
+
+          if [ "$ready" != "true" ]; then
+            echo "PostgreSQL smoke database did not become ready." >&2
+            docker logs "$DB_CONTAINER" || true
+            exit 1
+          fi
+
+          docker run --rm \
+            --network "$NETWORK" \
+            -e DatabaseSettings__Provider=postgresql \
+            -e DatabaseSettings__ConnectionStringName=appDatabase \
+            -e ConnectionStrings__appDatabase="Host=$DB_CONTAINER;Port=5432;Database=PackageSmoke;Username=postgres;Password=smoke-postgres" \
+            -e MIGRATION_MAX_ATTEMPTS=5 \
+            -e MIGRATION_RETRY_DELAY_SECONDS=1 \
+            t3mmyvsa-migrations-smoke:local
 
       - name: Validate publishing credentials
         if: ${{ github.event_name == 'release' || inputs.publish }}

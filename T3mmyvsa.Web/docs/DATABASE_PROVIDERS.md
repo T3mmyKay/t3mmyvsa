@@ -1,10 +1,8 @@
 # Database Provider Guide
 
-T3mmyVSA separates the **application database provider** from the **Hangfire storage provider**.
+T3mmyVSA separates the application database provider from Hangfire storage and owns EF migrations in a dedicated project.
 
 ## Application database providers
-
-Supported EF Core providers:
 
 | Canonical value | Provider package |
 | --- | --- |
@@ -13,7 +11,7 @@ Supported EF Core providers:
 | `mysql` | `MySql.EntityFrameworkCore` |
 | `sqlite` | `Microsoft.EntityFrameworkCore.Sqlite` |
 
-Configure the provider and the connection-string key:
+Configure:
 
 ```text
 DatabaseSettings__Provider=postgresql
@@ -21,83 +19,44 @@ DatabaseSettings__ConnectionStringName=appDatabase
 ConnectionStrings__appDatabase=Host=localhost;Database=myapp;Username=postgres;Password=<secret>
 ```
 
-Accepted compatibility aliases:
+Aliases: SQL Server `mssql`, `sql-server`; PostgreSQL `postgres`, `pgsql`, `npgsql`; SQLite `sqlite3`. Pre-v2 `DBProvider`/`sqlConnection` remain compatibility aliases.
 
-- SQL Server: `mssql`, `sql-server`
-- PostgreSQL: `postgres`, `pgsql`, `npgsql`
-- SQLite: `sqlite3`
+## Dedicated provider-specific migrations
 
-Pre-v2 `DatabaseSettings:DBProvider` and `ConnectionStrings:sqlConnection` are accepted for compatibility, but new applications should use the canonical settings.
-
-## Provider-specific migrations
-
-EF Core migrations are not portable database DDL.
-
-The project template therefore starts **without pre-generated migration files**. After choosing the application provider:
-
-1. configure `DatabaseSettings:Provider`;
-2. configure the selected connection string;
-3. generate the initial migration;
-4. inspect it;
-5. apply it.
+EF migrations are provider-specific. New projects ship without generated migration history. Generate into `Migrations/Data/Migrations`:
 
 ```bash
-dotnet ef migrations add InitialCreate
-dotnet ef database update
+dotnet ef migrations add InitialCreate \
+  --project Migrations/T3mmyvsa.Migrations.csproj \
+  --startup-project Migrations/T3mmyvsa.Migrations.csproj \
+  --output-dir Data/Migrations
 ```
 
-The design-time `AppDbContext` factory reads the same provider settings as runtime, but does not start Hangfire or other application infrastructure.
+The migrations project contains the design-time `AppDbContext` factory and sets itself as the migrations assembly for the selected provider. `dotnet ef` therefore does not execute the web host or start Hangfire.
 
-### Switching providers later
+At deployment, run the compiled migration executable:
 
-Do not reuse the existing migration history against a different provider.
+```bash
+dotnet Migrations/bin/Release/net10.0/T3mmyvsa.Migrations.dll
+```
 
-For a provider switch:
+The Docker `migrate` service packages that executable in an ASP.NET runtime image and applies it before API/Worker startup. It retries database startup failures with bounded attempts and fails when no migrations exist.
 
-1. back up/export application data;
-2. configure the new provider and connection string;
-3. create a fresh migration history for the new database;
-4. provision the new database;
-5. migrate data deliberately;
-6. validate provider-specific behavior before cutover.
+### Switching providers
 
-Keep migrations for one deployed application on one provider line.
+Do not reuse migration history across providers. Export/backup data, create a fresh migration history for the new provider, provision/migrate data deliberately and validate behavior before cutover.
 
 ## Hangfire storage
 
-Supported production Hangfire storage providers are:
+Supported production Hangfire storage providers:
 
-- SQL Server (`Hangfire.SqlServer`)
-- PostgreSQL (`Hangfire.PostgreSql`)
+- SQL Server
+- PostgreSQL
 
-By default:
+`Hangfire__StorageProvider=inherit` follows the application provider only for SQL Server/PostgreSQL. MySQL/SQLite apps must disable Hangfire or point it to a separate supported store.
 
-```text
-Hangfire__StorageProvider=inherit
-```
-
-Inheritance is allowed only when the application database is SQL Server or PostgreSQL.
-
-For a MySQL or SQLite application, either disable Hangfire:
-
-```text
-Hangfire__Enabled=false
-```
-
-or use a separate supported job database:
-
-```text
-Hangfire__StorageProvider=postgresql
-Hangfire__ConnectionStringName=hangfireDatabase
-ConnectionStrings__hangfireDatabase=Host=localhost;Database=jobs;Username=postgres;Password=<secret>
-```
-
-This separation lets application persistence and background-job persistence evolve independently.
+The API defaults to `Hangfire__ServerEnabled=false`; the dedicated Worker forces server mode. Storage/client registration remains in the API so it can enqueue jobs.
 
 ## Runtime behavior
 
-At normal runtime, missing application or Hangfire connection strings fail closed during startup configuration.
-
-Build-time OpenAPI generation may use a non-network placeholder connection string only to construct the EF model. It does not seed or migrate the database.
-
-Readiness checks use `AppDbContext.Database.CanConnectAsync`, so they follow whichever EF provider is selected.
+Normal runtime fails closed when required connection strings are missing. Build-time OpenAPI generation may use a non-network placeholder solely to construct the EF model. Readiness uses `AppDbContext.Database.CanConnectAsync()` and follows the selected provider.

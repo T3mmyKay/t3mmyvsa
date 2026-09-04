@@ -36,9 +36,12 @@ if [[ -z "$provider" || -z "$connection_string" ]]; then
   exit 2
 fi
 
-echo "Generating EF Core migration '$migration_name' for provider '$provider'..."
+echo "Generating EF Core migration '$migration_name' for provider '$provider' in the dedicated migrations project..."
 
 DatabaseSettings__Provider="$provider" \
 DatabaseSettings__ConnectionStringName="appDatabase" \
 ConnectionStrings__appDatabase="$connection_string" \
-dotnet ef migrations add "$migration_name"
+dotnet ef migrations add "$migration_name" \
+  --project Migrations/T3mmyvsa.Migrations.csproj \
+  --startup-project Migrations/T3mmyvsa.Migrations.csproj \
+  --output-dir Data/Migrations

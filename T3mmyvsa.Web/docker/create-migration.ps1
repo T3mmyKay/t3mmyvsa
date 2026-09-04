@@ -37,14 +37,17 @@ if ([string]::IsNullOrWhiteSpace($provider) -or [string]::IsNullOrWhiteSpace($co
     throw "DATABASE_PROVIDER and DATABASE_CONNECTION_STRING must resolve from '$EnvFile'."
 }
 
-Write-Host "Generating EF Core migration '$MigrationName' for provider '$provider'..."
+Write-Host "Generating EF Core migration '$MigrationName' for provider '$provider' in the dedicated migrations project..."
 
 $env:DatabaseSettings__Provider = $provider
 $env:DatabaseSettings__ConnectionStringName = "appDatabase"
 $env:ConnectionStrings__appDatabase = $connectionString
 
 try {
-    dotnet ef migrations add $MigrationName
+    dotnet ef migrations add $MigrationName `
+        --project Migrations/T3mmyvsa.Migrations.csproj `
+        --startup-project Migrations/T3mmyvsa.Migrations.csproj `
+        --output-dir Data/Migrations
 }
 finally {
     Remove-Item Env:DatabaseSettings__Provider -ErrorAction SilentlyContinue

@@ -1,6 +1,7 @@
 <Project>
   <PropertyGroup>
     <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+    <CentralPackageTransitivePinningEnabled>true</CentralPackageTransitivePinningEnabled>
     <DotNetVersion>10.0</DotNetVersion>
     <MicrosoftAspNetCoreVersion>10.0.11</MicrosoftAspNetCoreVersion>
     <MicrosoftEntityFrameworkCoreVersion>10.0.11</MicrosoftEntityFrameworkCoreVersion>
