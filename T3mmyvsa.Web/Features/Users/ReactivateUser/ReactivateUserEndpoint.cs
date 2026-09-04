@@ -13,10 +13,11 @@ public class ReactivateUserEndpoint : ICarterModule
             return Results.NoContent();
         })
         .HasApiVersion(1)
+        .HasApiVersion(2)
         .WithName(nameof(ReactivateUserEndpoint))
         .WithTags("Users")
         .WithSummary("Reactivate a user")
-        .WithDescription("Reactivates a previously deactivated user by clearing their lockout status.")
+        .WithDescription("Restores administrative account activity without clearing an authentication security lockout.")
         .Produces(StatusCodes.Status204NoContent)
         .ProducesProblem(StatusCodes.Status404NotFound)
         .ProducesProblem(StatusCodes.Status401Unauthorized)
