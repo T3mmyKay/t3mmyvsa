@@ -15,7 +15,7 @@ jobs:
       DOTNET_NOLOGO: true
       DOTNET_CLI_TELEMETRY_OPTOUT: true
 
-      # This hosting example is intentionally SQL Server specific.
+      # This shared-hosting deployment example is intentionally SQL Server specific.
       DatabaseSettings__Provider: sqlserver
       DatabaseSettings__ConnectionStringName: appDatabase
       ConnectionStrings__appDatabase: ${{ secrets.DB_CONNECTION_STRING }}
@@ -29,21 +29,65 @@ jobs:
           dotnet-version: 10.0.x
 
       - name: Restore dependencies
-        run: dotnet restore T3mmyvsa.csproj
+        run: dotnet restore T3mmyvsa.slnx
 
       - name: Build release
-        run: dotnet build T3mmyvsa.csproj --configuration Release --no-restore
-
-      - name: Install EF Core tools
-        run: dotnet tool install --global dotnet-ef --version 10.0.11
+        run: dotnet build T3mmyvsa.slnx --configuration Release --no-restore
 
       - name: Update database
-        run: dotnet ef database update --context=AppDbContext --project T3mmyvsa.csproj --configuration Release --no-build
+        run: dotnet run --project Migrations/T3mmyvsa.Migrations.csproj --configuration Release --no-build
 
-      - name: Publish
+      - name: Publish web application
         run: |
           dotnet publish T3mmyvsa.csproj --configuration Release --no-build --output ./release
           Remove-Item -Path ./release/BuildHost-* -Recurse -Force -ErrorAction SilentlyContinue
+
+      - name: Configure shared-host compatibility mode
+        shell: pwsh
+        run: |
+          $webConfigPath = Join-Path $pwd "release\web.config"
+          if (-not (Test-Path $webConfigPath)) {
+              throw "Published web.config was not found at '$webConfigPath'."
+          }
+
+          [xml]$config = Get-Content $webConfigPath
+          $aspNetCore = $config.configuration.'system.webServer'.aspNetCore
+          if ($null -eq $aspNetCore) {
+              throw "Published web.config does not contain the ASP.NET Core IIS handler configuration."
+          }
+
+          $environmentVariables = $aspNetCore.environmentVariables
+          if ($null -eq $environmentVariables) {
+              $environmentVariables = $config.CreateElement("environmentVariables")
+              [void]$aspNetCore.AppendChild($environmentVariables)
+          }
+
+          function Set-HostedEnvironmentVariable {
+              param([string]$Name, [string]$Value)
+
+              $existing = @($environmentVariables.environmentVariable) |
+                  Where-Object { $_.name -eq $Name } |
+                  Select-Object -First 1
+
+              if ($null -eq $existing) {
+                  $node = $config.CreateElement("environmentVariable")
+                  [void]$node.SetAttribute("name", $Name)
+                  [void]$node.SetAttribute("value", $Value)
+                  [void]$environmentVariables.AppendChild($node)
+              }
+              else {
+                  [void]$existing.SetAttribute("value", $Value)
+              }
+          }
+
+          # SmarterASP.NET shared hosting runs one IIS-managed web process. The
+          # dedicated Worker remains the recommended Docker/VPS topology, while
+          # shared hosting deliberately processes Hangfire jobs in the API process.
+          Set-HostedEnvironmentVariable "ASPNETCORE_ENVIRONMENT" "Production"
+          Set-HostedEnvironmentVariable "Hangfire__Enabled" "true"
+          Set-HostedEnvironmentVariable "Hangfire__ServerEnabled" "true"
+
+          $config.Save($webConfigPath)
 
       - name: Deploy to SmarterASP.NET
         shell: pwsh

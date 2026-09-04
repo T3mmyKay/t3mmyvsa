@@ -7,7 +7,7 @@
   ],
   "identity": "T3mmy.VSA.Template",
   "name": "T3mmyVSA",
-  "description": "A production-oriented ASP.NET Core 10 Web API starter using Vertical Slice Architecture, Identity, granular permissions, multi-provider EF Core persistence, FluentValidation, Serilog, Hangfire, Docker, health checks, and hardened configuration defaults.",
+  "description": "A production-oriented ASP.NET Core 10 Vertical Slice Architecture starter with Identity, permissions, multi-provider EF Core persistence, dedicated migrations and Hangfire worker processes, xUnit v3/MTP testing, Docker, health checks, and hardened defaults.",
   "shortName": "t3mmyvsa",
   "sourceName": "T3mmyvsa",
   "tags": {
@@ -28,7 +28,7 @@
             "logs/**",
             "**/*.user",
             "RULES.md",
-            "Data/Migrations/**"
+            "Migrations/Data/Migrations/**"
           ],
           "rename": {
             ".github/workflows/_deploy-smarteraspnet.yml": ".github/workflows/deploy-smarteraspnet.yml"

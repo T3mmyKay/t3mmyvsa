@@ -1,31 +1,24 @@
 # Docker
 
-The generated project includes a production-style multi-stage `Dockerfile` and a Docker Compose development stack.
+The generated project includes a multi-stage .NET 10 Dockerfile and Compose topology for API, Worker and run-to-completion migrations.
 
-## What is included
+## Runtime targets
 
-- .NET 10 SDK build stage and ASP.NET Core runtime stage
-- non-root `app` runtime user
-- read-only API container filesystem with only explicit writable mounts
-- persistent Serilog logs
-- persistent ASP.NET Core Data Protection keys
-- separate EF Core migration image/job
-- PostgreSQL 18, SQL Server 2022 and MySQL 8.4 database profiles
-- SQLite through a persistent application data volume
-- localhost-only host port bindings for the API and development databases
-- Docker health checks for database containers
-- Hangfire inheritance for PostgreSQL/SQL Server; disabled by default for MySQL/SQLite
+- `final` — non-root/read-only ASP.NET API image
+- `worker` — non-root/read-only Hangfire Generic Host
+- `migrations` — compiled migration executable in the ASP.NET runtime image (no SDK or `dotnet-ef`)
 
-The Compose stack is intended for local development and CI. Production deployments should use the same final image with platform-managed secrets, an external production database, a shared/secured Data Protection key store for multiple replicas, and your orchestrator's HTTP probes against `/health/live` and `/health/ready`.
+Compose also provides PostgreSQL 18, SQL Server 2022 and MySQL 8.4 profiles; SQLite uses a persistent volume.
 
 ## First-time setup
 
-The project template intentionally does not ship provider-specific EF migrations. First copy the environment example for the database you want, set its blank secrets, and generate the migration using the included helper.
-
-Bash/zsh:
+The template intentionally ships without provider-specific migrations. Configure a provider and generate one on the development host:
 
 ```bash
+cp .env.example .env
+# set POSTGRES_PASSWORD and JWT_SECRET
 bash docker/create-migration.sh InitialCreate
+docker compose up --build
 ```
 
 PowerShell:
@@ -34,125 +27,64 @@ PowerShell:
 pwsh -File docker/create-migration.ps1 -MigrationName InitialCreate
 ```
 
-The helpers use `docker compose config --environment` to resolve the selected Docker environment and pass the provider/connection string to `dotnet ef`. They require the .NET 10 SDK, Docker Compose and `dotnet-ef` on the host.
+Generation needs .NET 10, Docker Compose and `dotnet-ef`. Deployment does not: the `migrate` container runs the compiled migrations executable, retries while the database starts, and must succeed before API/Worker services start.
 
-The Docker `migrate` service then applies committed migrations automatically before the API starts. It retries while the database is starting and fails clearly when no migrations exist.
+## Services
 
-## PostgreSQL (recommended Docker default)
+`api` handles HTTP and enqueues Hangfire jobs. It defaults `Hangfire__ServerEnabled=false`.
+
+`worker` processes Hangfire queues independently. It has no public port and can be scaled independently.
+
+`migrate` is run-to-completion and applies EF migrations before the long-running services.
+
+## Providers
+
+PostgreSQL default:
 
 ```bash
 cp .env.example .env
 ```
 
-Set `POSTGRES_PASSWORD` and `JWT_SECRET` in `.env`, then:
-
-```bash
-bash docker/create-migration.sh InitialCreate
-docker compose up --build
-```
-
-The default `.env.example` enables the `postgres` profile. PostgreSQL 18 persists its data under `/var/lib/postgresql`, matching the PostgreSQL 18+ official image layout.
-
-## SQL Server
+SQL Server:
 
 ```bash
 cp docker/env/sqlserver.env.example .env
 ```
 
-Set `MSSQL_SA_PASSWORD` and `JWT_SECRET`, then:
-
-```bash
-bash docker/create-migration.sh InitialCreate
-docker compose up --build
-```
-
-The SQL Server password must satisfy SQL Server's password policy.
-
-Microsoft supports SQL Server Linux containers on x86-64 Linux hosts. ARM64 Docker Desktop users, including Apple Silicon Macs, should prefer PostgreSQL, MySQL or SQLite for local containers unless they intentionally accept unsupported emulation.
-
-## MySQL
+MySQL:
 
 ```bash
 cp docker/env/mysql.env.example .env
 ```
 
-Set `MYSQL_PASSWORD`, `MYSQL_ROOT_PASSWORD` and `JWT_SECRET`, then:
-
-```bash
-bash docker/create-migration.sh InitialCreate
-docker compose up --build
-```
-
-Hangfire is disabled by default for the MySQL profile. To enable jobs, configure Hangfire with a separate SQL Server or PostgreSQL connection.
-
-## SQLite
+SQLite:
 
 ```bash
 cp docker/env/sqlite.env.example .env
 ```
 
-Set `JWT_SECRET`, then:
+For MySQL/SQLite, Hangfire is disabled by default because this starter supports SQL Server/PostgreSQL Hangfire storage only. Configure a separate supported job store to enable the Worker.
 
-```bash
-bash docker/create-migration.sh InitialCreate
-docker compose up --build
-```
-
-SQLite needs no database service or Compose profile. It persists at `/app/data/app.db` through the `sqlite-data` named volume. Hangfire is disabled by default.
+SQL Server Linux containers are x86-64 oriented; Apple Silicon/ARM developers should prefer PostgreSQL, MySQL or SQLite locally unless deliberately using emulation.
 
 ## Common commands
 
 ```bash
-# Start or rebuild
 docker compose up --build
-
-# Detached mode
 docker compose up -d --build
-
-# View API logs
-docker compose logs -f api
-
-# Re-run migrations
+docker compose logs -f api worker
 docker compose run --rm migrate
-
-# Stop containers but keep data
 docker compose down
-
-# Stop containers and delete all local named volumes
 docker compose down -v
-
-# Validate the resolved Compose model
 docker compose config
 ```
 
-The API is bound to `127.0.0.1:8080` by default. Change `APP_PORT` in `.env` when necessary.
+The API binds to `127.0.0.1:8080` by default. Database ports are localhost-only.
 
-## Secrets
+## Hardening
 
-`.env` and `.env.*` are ignored by the generated project. The example files deliberately leave secrets blank. Do not commit real JWT secrets, database passwords, mail credentials, bootstrap-admin credentials or Hangfire dashboard credentials.
+API, Worker and migration containers run non-root. Long-running app containers are read-only with explicit writable volumes/tmpfs, `no-new-privileges`, and all Linux capabilities dropped. Secrets come from environment/platform secret stores and `.env*` files are excluded from image build context.
 
-For production, do not copy a local `.env` file into the image. `.dockerignore` excludes environment files from the Docker build context.
+API Data Protection keys are persisted locally. Horizontally scaled production deployments should use a shared protected key store.
 
-## Data Protection
-
-The API container sets `HOME=/home/app` and persists `/home/app/.aspnet/DataProtection-Keys` as a named volume. This keeps password-reset and other Data Protection payloads valid across local container restarts.
-
-For horizontally scaled production deployments, replace the local named volume with a shared persistent provider and protect keys at rest according to your hosting environment.
-
-## Database selection
-
-Docker Compose profiles select only local database containers:
-
-- `postgres`
-- `sqlserver`
-- `mysql`
-
-SQLite has no database-container profile. Application database selection remains the existing runtime configuration contract:
-
-```text
-DatabaseSettings__Provider
-DatabaseSettings__ConnectionStringName
-ConnectionStrings__appDatabase
-```
-
-`COMPOSE_PROFILES` is supplied by the PostgreSQL, SQL Server and MySQL example environment files.
+See `docs/PROCESS_TOPOLOGY.md` for deployment/scaling guidance.

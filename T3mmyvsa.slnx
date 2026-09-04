@@ -1,5 +1,7 @@
 <Solution>
   <Project Path="T3mmyvsa.Web/T3mmyvsa.csproj" />
+  <Project Path="T3mmyvsa.Web/Migrations/T3mmyvsa.Migrations.csproj" />
+  <Project Path="T3mmyvsa.Web/Worker/T3mmyvsa.Worker.csproj" />
   <Project Path="T3mmyvsa.Web/Tests/T3mmyvsa.UnitTests/T3mmyvsa.UnitTests.csproj" />
   <Project Path="T3mmyvsa.Web/Tests/T3mmyvsa.ArchitectureTests/T3mmyvsa.ArchitectureTests.csproj" />
   <Project Path="T3mmyvsa.Web/Tests/T3mmyvsa.IntegrationTests/T3mmyvsa.IntegrationTests.csproj" />

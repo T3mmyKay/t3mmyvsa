@@ -22,7 +22,7 @@ services:
       JwtSettings__Secret: ${JWT_SECRET:?Set JWT_SECRET in .env}
       AppSettings__AppUrl: ${APP_URL:-http://localhost:8080}
       Hangfire__Enabled: ${HANGFIRE_ENABLED:-true}
-      Hangfire__ServerEnabled: ${HANGFIRE_SERVER_ENABLED:-true}
+      Hangfire__ServerEnabled: ${HANGFIRE_SERVER_ENABLED:-false}
       Hangfire__StorageProvider: ${HANGFIRE_STORAGE_PROVIDER:-inherit}
       Hangfire__ConnectionStringName: ${HANGFIRE_CONNECTION_STRING_NAME:-}
       ConnectionStrings__hangfireDatabase: ${HANGFIRE_CONNECTION_STRING:-}
@@ -45,6 +45,42 @@ services:
       - backend
     stop_grace_period: 30s
 
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: worker
+      args:
+        BUILD_CONFIGURATION: ${BUILD_CONFIGURATION:-Release}
+    restart: unless-stopped
+    init: true
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    environment:
+      DOTNET_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Development}
+      DatabaseSettings__Provider: ${DATABASE_PROVIDER:-postgresql}
+      DatabaseSettings__ConnectionStringName: appDatabase
+      ConnectionStrings__appDatabase: ${DATABASE_CONNECTION_STRING:?Set DATABASE_CONNECTION_STRING in .env}
+      Hangfire__Enabled: ${HANGFIRE_ENABLED:-true}
+      Hangfire__StorageProvider: ${HANGFIRE_STORAGE_PROVIDER:-inherit}
+      Hangfire__ConnectionStringName: ${HANGFIRE_CONNECTION_STRING_NAME:-}
+      ConnectionStrings__hangfireDatabase: ${HANGFIRE_CONNECTION_STRING:-}
+      MailSettings__Password: ${MAIL_PASSWORD:-}
+    volumes:
+      - worker-logs:/app/Logs
+      - sqlite-data:/app/data
+    tmpfs:
+      - /tmp
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    networks:
+      - backend
+    stop_grace_period: 60s
+
   migrate:
     build:
       context: .
@@ -52,7 +88,6 @@ services:
       target: migrations
       args:
         BUILD_CONFIGURATION: ${BUILD_CONFIGURATION:-Release}
-        DOTNET_EF_VERSION: ${DOTNET_EF_VERSION:-10.0.11}
     restart: "no"
     environment:
       DatabaseSettings__Provider: ${DATABASE_PROVIDER:-postgresql}
@@ -62,6 +97,13 @@ services:
       MIGRATION_RETRY_DELAY_SECONDS: ${MIGRATION_RETRY_DELAY_SECONDS:-2}
     volumes:
       - sqlite-data:/app/data
+    tmpfs:
+      - /tmp
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
     networks:
       - backend
 
@@ -135,6 +177,7 @@ networks:
 
 volumes:
   app-logs:
+  worker-logs:
   data-protection-keys:
   sqlite-data:
   postgres-data:
