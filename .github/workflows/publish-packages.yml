@@ -141,9 +141,15 @@ jobs:
           dotnet test Tests/*ArchitectureTests/*.csproj -c Release --no-build --no-restore
           dotnet test Tests/*IntegrationTests/*.csproj -c Release --no-build --no-restore
 
+          MIGRATIONS_PROJECT=$(find Migrations -maxdepth 1 -type f -name '*.Migrations.csproj' -print -quit)
+          if [ -z "$MIGRATIONS_PROJECT" ]; then
+            echo "Generated migrations project was not found under Migrations/." >&2
+            exit 1
+          fi
+
           dotnet ef migrations add PackageSmokeInitial \
-            --project Migrations/T3mmyvsa.Migrations.csproj \
-            --startup-project Migrations/T3mmyvsa.Migrations.csproj \
+            --project "$MIGRATIONS_PROJECT" \
+            --startup-project "$MIGRATIONS_PROJECT" \
             --output-dir Data/Migrations
 
           for env_file in .env.example docker/env/*.env.example; do
